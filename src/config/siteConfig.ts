@@ -10,7 +10,7 @@ export const siteConfig: SiteConfig = {
 	title: "Firefly",
 
 	// 站点副标题
-	subtitle: "Demo site",
+	subtitle: "I LOVE cyrene",
 
 	// 站点 URL
 	site_url: "https://sliver-yu.cc",
