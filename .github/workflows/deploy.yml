@@ -1,47 +1,44 @@
-name: Deploy to Pages Branch
-
+name: 部署到 GitHub Pages
 on:
-  # 每次推送到 `master` 分支时触发这个"工作流程"
-  # 如果你使用了别的分支名，请按需将 `master` 替换成你的分支名
   push:
-    branches: [ master ]
-  # 允许你在 GitHub 上的 Actions 标签中手动触发此"工作流程"
+    branches: [ main ] # 确认你本地推送的是 main
   workflow_dispatch:
 
-# 需要写入权限来推送到pages分支
 permissions:
-  contents: write
+  contents: read
+  pages: write      # 必须：允许 Actions 写入 Pages
+  id-token: write   # 必须：用于证书验证
 
 jobs:
-  build-and-deploy:
+  build:
+    name: 构建网站
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout your repository using git
+      - name: 检出代码
         uses: actions/checkout@v4
-      
-      - name: Setup Node.js
+      - name: 设置 Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.14.4
-          run_install: false
-          
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-      
-      - name: Build site
+          cache: 'pnpm'
+      - name: 安装 pnpm
+        run: npm install -g pnpm
+      - name: 安装依赖
+        run: pnpm install
+      - name: 构建 Astro 网站
         run: pnpm run build
-
-      - name: Create .nojekyll file
-        run: touch dist/.nojekyll
-      
-      - name: Deploy to pages branch
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: 上传构建产物
+        uses: actions/upload-pages-artifact@v3
         with:
-          branch: pages # 部署到pages分支
-          folder: dist # Astro默认构建输出目录
-          clean: true # 清理目标分支中的旧文件
+          path: ./dist # 网页生成的文件夹
+
+  deploy:
+    name: 部署到 GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # 真正的“最后一步”发布
