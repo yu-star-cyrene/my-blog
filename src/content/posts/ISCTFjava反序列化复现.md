@@ -1,5 +1,7 @@
 ---
 title: "ISCTFjava反序列化复现"
+image: ''
+pinned: false
 published: 2025-12-08
 description: "CTF 学习笔记与技术复盘"
 category: 学习

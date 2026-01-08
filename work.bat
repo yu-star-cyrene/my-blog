@@ -1,46 +1,41 @@
 @echo off
-:: 解决中文乱码问题
 chcp 65001 > nul
-setlocal enabledelayedexpansion
 
 :MENU
 cls
 echo ===========================================
-echo          Sliver's 博客终极管理工具
+echo          余林阳博客管理工具
 echo ===========================================
-echo  1. 新建文章
-echo  2. 删除文章 (全目录智能搜索)
-echo  3. 修改文章属性 (封面/置顶/标题/搬运)
-echo  4. 修改站名 (Site Title)
-echo  5. 本地预览 (修复端口冲突)
-echo  6. 发布博客 (含 3 天历史清理)
-echo  7. 退出
+echo  1. 进入内容管理 (新建/置顶/规范化/图片)
+echo  2. 删除文章 (全目录搜索)
+echo  3. 本地预览 (修复端口冲突)
+echo  4. 发布博客 (Git Push)
+echo  5. 退出
 echo ===========================================
 set /p opt="请选择序号: "
 
-if "%opt%"=="1" goto NEW_POST
+if "%opt%"=="1" goto CONTENT_TASK
 if "%opt%"=="2" goto DELETE_POST
-if "%opt%"=="3" goto EDIT_POST
-if "%opt%"=="4" goto SITE_SETTING
-if "%opt%"=="5" goto DEV
-if "%opt%"=="6" goto DEPLOY
-if "%opt%"=="7" exit
+if "%opt%"=="3" goto DEV
+if "%opt%"=="4" goto DEPLOY
+if "%opt%"=="5" exit
 goto MENU
 
-:NEW_POST
+:CONTENT_TASK
 cls
-set /p title="标题: "
-set "filepath=src\content\posts\%title%.md"
-echo --- > "%filepath%"
-echo title: %title% >> "%filepath%"
-echo published: %date:~0,10% >> "%filepath%"
-:: 修正：使用主题支持的 pinned 字段
-echo pinned: false >> "%filepath%"
-echo image: '' >> "%filepath%"
-echo --- >> "%filepath%"
-echo ## 正文开始 >> "%filepath%"
-echo [OK] 已创建文章。
-pause
+:: 检查文件是否存在
+if not exist img_fixer.py (
+    echo [错误] 找不到 img_fixer.py 脚本！
+    pause
+    goto MENU
+)
+:: 运行并捕获错误
+python img_fixer.py
+if %errorlevel% neq 0 (
+    echo.
+    echo [报错] Python 脚本运行崩溃，请检查上方错误信息。
+    pause
+)
 goto MENU
 
 :DELETE_POST
@@ -62,31 +57,17 @@ if not "!file%del_num%!"=="" (
 pause
 goto MENU
 
-:EDIT_POST
-:: 调用 Python 稳定处理
-python img_fixer.py
-goto MENU
-
-:SITE_SETTING
-cls
-set /p nst="新站名: "
-powershell -Command "(gc src/config/siteConfig.ts) -replace 'title: \'.*\'', 'title: ''%nst%''' | Out-File -encoding utf8 src/config/siteConfig.ts"
-goto MENU
-
 :DEV
 cls
-echo [1/2] 正在清理 4321 端口占用...
 taskkill /f /im node.exe >nul 2>&1
-echo [2/2] 启动预览: http://localhost:4321
-start "博客预览" cmd /k "pnpm dev"
-pause
+start "" http://localhost:4321
+cmd /k "pnpm dev"
 goto MENU
 
 :DEPLOY
 cls
 git add .
-git commit -m "自动化部署: %date% %time%"
+git commit -m "update: %date% %time%"
 git push origin main
-echo [OK] 部署指令已发送。
 pause
 goto MENU

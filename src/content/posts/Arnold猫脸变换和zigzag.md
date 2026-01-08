@@ -1,5 +1,7 @@
 ---
 title: "Arnold猫脸变换和zigzag"
+image: ''
+pinned: false
 published: 2025-12-11
 description: "CTF 学习笔记与技术复盘"
 category: 知识点

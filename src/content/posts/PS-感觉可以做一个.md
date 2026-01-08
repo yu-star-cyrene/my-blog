@@ -1,5 +1,7 @@
 ---
 title: "PS:感觉可以做一个"
+image: ''
+pinned: false
 published: 2025-11-11
 description: "CTF 学习笔记与技术复盘"
 category: 学习
