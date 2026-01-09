@@ -18,8 +18,8 @@
   var labelTimer = setInterval(function() {
       var mailInput = document.querySelector('input[name="mail"]');
       if (mailInput) {
-          // --- 这里改成了你要求的文字 ---
-          mailInput.placeholder = "QQ号或者头像绝对路径";
+          // --- 修改提示文字 ---
+          mailInput.placeholder = "请填入qq号";
           
           var container = mailInput.closest('.el-input-group');
           if (container) {
