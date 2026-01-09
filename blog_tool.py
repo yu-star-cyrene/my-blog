@@ -2,36 +2,100 @@ import os
 import re
 import shutil
 import time
+import glob
 from datetime import datetime
 
 # --- 基础配置 ---
+# 博客内容目录
 POSTS_DIR = os.path.join('src', 'content', 'posts')
+# 配置文件路径
 CONFIG_PATH = os.path.join('src', 'config', 'siteConfig.ts')
+# 图片存放目录
 PUBLIC_IMG_DIR = os.path.join('public', 'images')
+# 备份存放目录 (你指定的路径)
+BACKUP_DIR = r"C:\Users\G1731\Blog_Backups"
+# 文章分类
 CATEGORIES = ["秘籍", "刷题", "学习", "知识点"]
+# 版权声明
 COPYRIGHT = "- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。"
 
-# ==================== 核心功能区 ====================
+# ==================== 📦 备份模块 (新增) ====================
+
+def run_backup():
+    """执行本地备份 (保留最新5份)"""
+    print(f"\n=== 📦 正在备份到 {BACKUP_DIR} ... ===")
+    
+    if not os.path.exists(BACKUP_DIR):
+        os.makedirs(BACKUP_DIR)
+        print(f"创建备份目录: {BACKUP_DIR}")
+
+    # 1. 生成备份文件名 (时间戳)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    zip_name = f"Blog_Backup_{timestamp}"
+    zip_path = os.path.join(BACKUP_DIR, zip_name)
+
+    # 2. 打包关键目录 (src 和 public)
+    # 为了防止把 node_modules 打包进去导致过大，我们只打包核心代码
+    try:
+        # 创建临时目录用于打包
+        temp_dir = os.path.join(BACKUP_DIR, "temp_pack")
+        if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
+        os.makedirs(temp_dir)
+
+        # 复制关键文件/文件夹
+        for item in ['src', 'public', 'astro.config.mjs', 'package.json', 'tsconfig.json']:
+            if os.path.exists(item):
+                if os.path.isdir(item):
+                    shutil.copytree(item, os.path.join(temp_dir, item))
+                else:
+                    shutil.copy2(item, temp_dir)
+        
+        # 压缩
+        shutil.make_archive(zip_path, 'zip', temp_dir)
+        
+        # 清理临时目录
+        shutil.rmtree(temp_dir)
+        print(f"✅ 备份成功: {zip_name}.zip")
+
+    except Exception as e:
+        print(f"❌ 备份失败: {e}")
+        return
+
+    # 3. 自动清理旧备份 (只保留最新 5 个)
+    try:
+        # 获取所有 zip 备份
+        files = glob.glob(os.path.join(BACKUP_DIR, "Blog_Backup_*.zip"))
+        # 按修改时间排序 (新的在后)
+        files.sort(key=os.path.getmtime)
+        
+        if len(files) > 5:
+            print("🧹 清理旧备份...")
+            # 删除多余的 (保留最后5个)
+            files_to_delete = files[:-5]
+            for f in files_to_delete:
+                os.remove(f)
+                print(f"   已删除过期备份: {os.path.basename(f)}")
+    except Exception as e:
+        print(f"⚠️ 清理旧备份出错: {e}")
+
+# ==================== 📝 文章管理模块 ====================
 
 def standardize_header(fm, path):
-    """生成标准文章头部 (修复语法错误版)"""
-    # 1. 预处理标题
+    """生成标准文章头部"""
+    # 预处理字段，避免 f-string 语法错误
     raw_title = fm.get('title', os.path.basename(path).replace(".md", ""))
     title = str(raw_title).strip('"\'')
     
-    # 2. 预处理其他字段，避免在 f-string 中使用反斜杠
     image_val = fm.get('image', "''")
     pinned_val = 'true' if str(fm.get('pinned', 'false')).lower() == 'true' else 'false'
     date_val = fm.get('published', datetime.now().strftime('%Y-%m-%d'))
     
-    # 默认描述处理
     default_desc = f'"{title} 的技术复盘"'
     desc_val = fm.get('description', default_desc)
     
     cat_val = fm.get('category', '学习')
     tags_val = fm.get('tags', f'[{cat_val}]')
 
-    # 3. 生成头部字符串
     lines = [
         "---",
         f"title: \"{title}\"",
@@ -59,7 +123,6 @@ def process_posts(mode='format'):
         cat = CATEGORIES[int(cid)-1] if cid.isdigit() and 0 < int(cid) <= len(CATEGORIES) else "学习"
         
         path = os.path.join(POSTS_DIR, f"{title}.md")
-        # 初始内容
         content = f"---\ntitle: \"{title}\"\ncategory: {cat}\ntags: [{cat}]\n---\n\n## 正文\n\n在这里写内容...\n\n---\n\n{COPYRIGHT}\n"
         with open(path, 'w', encoding='utf-8') as f: f.write(content)
         print(f"✅ 创建成功: {path}")
@@ -85,9 +148,10 @@ def process_posts(mode='format'):
                             k, v = line.split(':', 1)
                             fm[k.strip().lower()] = v.strip()
                     
+                    # 移除旧版权，避免重复
                     body_clean = "\n".join([l for l in body.split('\n') if "版权声明" not in l and "余林阳" not in l]).strip()
                     
-                    # 搬运图片
+                    # 搬运图片逻辑
                     img_matches = re.findall(r'!\[.*?\]\((.*?)\)', body_clean)
                     for src in img_matches:
                         src = src.strip('"\'')
@@ -103,6 +167,8 @@ def process_posts(mode='format'):
                     count += 1
                 except Exception as e: print(f"❌ 处理 {f} 失败: {e}")
     print(f"✅ 已规范化 {count} 篇文章。")
+
+# ==================== ⚙️ 配置模块 ====================
 
 def update_site_config():
     """配置管理中心"""
@@ -162,6 +228,8 @@ def delete_post():
         os.remove(target)
         print(f"✅ 已删除: {os.path.basename(target)}")
 
+# ==================== 🚀 运行模块 ====================
+
 def run_dev():
     """启动预览"""
     print("\n=== 🚀 正在启动本地预览... ===")
@@ -169,12 +237,16 @@ def run_dev():
     os.system("pnpm dev")
 
 def run_deploy():
-    """发布到 GitHub"""
-    print("\n=== ☁️ 正在发布... ===")
-    print("[1/3] 规范化文章格式...")
+    """发布到 GitHub (含自动备份)"""
+    print("\n=== ☁️ 准备发布... ===")
+    
+    # 1. 先备份
+    run_backup()
+    
+    print("\n[2/4] 规范化文章格式...")
     process_posts('format')
     
-    print("\n[2/3] 提交到 GitHub...")
+    print("\n[3/4] 提交到 GitHub...")
     os.system("git add .")
     os.system('git commit -m "update blog"')
     os.system("git push origin main")
@@ -197,7 +269,8 @@ if __name__ == "__main__":
         print(" 4. 🗑️  删除文章")
         print("-" * 35)
         print(" 5. 🚀 本地预览 (Dev)")
-        print(" 6. ☁️  发布博客 (Deploy)")
+        print(" 6. ☁️  发布博客 (Deploy+备份)")
+        print(" 7. 📦 手动备份博客")
         print("-" * 35)
         print(" Q. 退出")
         print("="*35)
@@ -211,3 +284,4 @@ if __name__ == "__main__":
         elif c == '4': delete_post(); input("\n按回车继续...")
         elif c == '5': run_dev()
         elif c == '6': run_deploy()
+        elif c == '7': run_backup(); input("\n按回车继续...")
