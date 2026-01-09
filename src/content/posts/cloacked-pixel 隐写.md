@@ -2,6 +2,7 @@
 title: "cloacked-pixel 隐写"
 image: ''
 pinned: false
+comment: true
 published: 2025-12-11
 description: "CTF 学习笔记与技术复盘"
 category: 知识点
@@ -23,6 +24,6 @@ tags: [知识点]
 
 以后要再看见这个题目就用这个工具秒了。
 
+---
 
-
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

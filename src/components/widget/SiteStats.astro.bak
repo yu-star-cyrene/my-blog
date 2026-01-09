@@ -19,10 +19,12 @@ const { class: className, style } = Astro.props;
 
 // 从配置中获取站点开始日期
 const siteStartDate = siteConfig.siteStartDate || "2025-01-01";
+
 // 获取所有文章
 const posts = await getSortedPosts();
 const categories = await getCategoryList();
 const tags = await getTagList();
+
 // 计算总字数
 let totalWords = 0;
 for (const post of posts) {
@@ -31,6 +33,7 @@ for (const post of posts) {
 		const text = post.body
 			.replace(/\s+/g, " ") // 合并空白
 			.trim();
+
 		// 分别计算中文字符和英文单词
 		const chineseChars = text.match(/[\u4e00-\u9fa5]/g) || [];
 		const englishWords = text.match(/[a-zA-Z]+/g) || [];
@@ -49,11 +52,13 @@ const latestPost = posts.reduce((latest, post) => {
 	if (!latest) return post;
 	return post.data.published > latest.data.published ? post : latest;
 }, posts[0]);
+
 const lastPostDate = latestPost
 	? latestPost.data.published.toISOString()
 	: null;
 
 const todayText = i18n(I18nKey.today);
+
 const stats = [
 	{
 		icon: "material-symbols:article-outline",
@@ -122,24 +127,6 @@ const stats = [
         </div>
       </div>
     ))}
-
-    <div class="flex items-center justify-between px-3 py-1.5">
-        <div class="flex items-center gap-2.5">
-            <div class="text-[var(--primary)] text-xl">
-                <Icon name="material-symbols:group-outline" />
-            </div>
-            <span class="text-neutral-700 dark:text-neutral-300 font-medium text-sm">
-                访客数
-            </span>
-        </div>
-        <div class="flex items-center">
-            <span class="text-base font-bold text-neutral-900 dark:text-neutral-100">
-                <span id="busuanzi_value_site_uv">--</span>
-            </span>
-            <span class="text-sm text-neutral-500 dark:text-neutral-400 ml-1">人</span>
-        </div>
-    </div>
-
   </div>
 </WidgetLayout>
 
@@ -182,7 +169,8 @@ const stats = [
 
   // 页面加载时更新
   updateDynamicStats();
-  // 每小时更新一次
+  
+  // 每小时更新一次（可选，因为天数变化较慢）
   setInterval(updateDynamicStats, 60 * 60 * 1000);
 
   // 页面切换时重新更新

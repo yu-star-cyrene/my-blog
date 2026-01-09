@@ -2,6 +2,7 @@
 title: "SQL大赏！！！"
 image: ''
 pinned: false
+comment: true
 published: 2025-12-11
 description: "CTF 学习笔记与技术复盘"
 category: 知识点
@@ -781,6 +782,8 @@ sqlmap确实很好用。
 
 
 
-----
+-
 
-- 版权声明：本文由白白毛毛创作，转载请注明出处。
+---
+
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

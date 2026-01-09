@@ -2,6 +2,7 @@
 title: "ctfshow的试炼"
 image: ''
 pinned: false
+comment: true
 published: 2025-11-16
 description: "CTF 学习笔记与技术复盘"
 category: 刷题
@@ -1190,20 +1191,6 @@ isinstance(     ,     ),判断类型。
 
 setattr(object, attribute, value),设置属性，赋值。
 
-
-
 ---
 
-
-
-
-
-
-
----
-
-
-
-
-
-   版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

@@ -2,6 +2,7 @@
 title: "ISCTFjava反序列化复现"
 image: ''
 pinned: false
+comment: true
 published: 2025-12-08
 description: "CTF 学习笔记与技术复盘"
 category: 学习
@@ -786,10 +787,6 @@ except Exception as e:
 
 ![alt text](/images/6C7F80F50AC376128618E4DEB1707C5A.png)
 
-
-
 ---
 
-
-
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

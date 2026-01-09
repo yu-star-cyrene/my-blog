@@ -2,6 +2,7 @@
 title: "ISCTF个人复盘"
 image: ''
 pinned: false
+comment: true
 published: 2025-12-11
 description: "CTF 学习笔记与技术复盘"
 category: 知识点
@@ -274,14 +275,6 @@ echo urlencode($f);
 
 这道题的关键其实就是注意一层一层递进的魔术方法，只要按着源码来，是没有问题的。
 
-
-
 ---
 
-
-
-
-
----
-
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

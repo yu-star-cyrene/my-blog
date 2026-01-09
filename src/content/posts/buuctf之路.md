@@ -2,6 +2,7 @@
 title: "buuctf之路"
 image: ''
 pinned: false
+comment: true
 published: 2025-11-11
 description: "CTF 学习笔记与技术复盘"
 category: 刷题
@@ -224,12 +225,6 @@ rand() % 200 == 1，看到这个了吧，随机case，只有先4，后5，再1�
 ![alt text](/images/QQ20251111-205246.png)
 这里，太直接了，根据buuctf的要求，最后得到flag，为flag{do_not_hate_me}
 
-
-
 ---
 
-
-
----
-
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

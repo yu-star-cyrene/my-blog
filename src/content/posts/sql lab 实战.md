@@ -2,6 +2,7 @@
 title: "sql lab 实战"
 image: ''
 pinned: false
+comment: true
 published: 2025-12-25
 description: "CTF 学习笔记与技术复盘"
 category: 学习
@@ -1744,16 +1745,6 @@ $sql="SELECT * FROM users WHERE username=$cookee1 LIMIT 0,1";
 
 这边的cookie被双引号包裹，而上一题的是单引号，小区别。
 
-
-
-
-
-
-
-
-
-
-
 ---
 
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

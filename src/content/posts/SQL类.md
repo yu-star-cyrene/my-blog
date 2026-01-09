@@ -2,6 +2,7 @@
 title: "SQL类"
 image: '/images/138311505_p0_master1200.jpg'
 pinned: true
+comment: true
 published: 2025-12-21
 description: CTF 学习笔记与技术复盘
 category: 秘籍
@@ -398,28 +399,6 @@ sqlmap -u "题目的url" \
 
 `sqlmap -u "..." --batch -D "数据库名" -T "表名" --dump`	**(爆破表内数据)**
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ---
 
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

@@ -2,6 +2,7 @@
 title: "PS:感觉可以做一个"
 image: ''
 pinned: false
+comment: true
 published: 2025-11-11
 description: "CTF 学习笔记与技术复盘"
 category: 学习
@@ -528,8 +529,6 @@ if (isset($_GET['operate'])){
 
 **G0D{90825d5e-416b-41c7-8544-37a99bc9fba5}**
 
-
-
 ---
 
-版权声明：本文由白白毛毛创作，转载请注明出处。
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

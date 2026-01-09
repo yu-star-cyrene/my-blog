@@ -2,6 +2,7 @@
 title: "nssctf学习中"
 image: '/images/133301699_p0_master1200.jpg'
 pinned: false
+comment: true
 published: 2025-11-11
 description: "CTF 学习笔记与技术复盘"
 category: 刷题
@@ -564,23 +565,6 @@ name=admi' union select 1,'admin','c4ca4238a0b923820dcc509a6f75849b'#&pw=1
 
 **NSSCTF{8c9f1139-03bf-4421-af17-c2b48003c861}**
 
-
-
 ---
 
-
-
-
-
-
-
-
-
-
-
-
-
----
-
-版权声明：本文由白白毛毛创作，转载请注明出处。
-
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
