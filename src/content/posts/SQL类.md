@@ -8,6 +8,7 @@ description: CTF 学习笔记与技术复盘
 category: 秘籍
 tags: [秘籍]
 ---
+
 # #SQLmap学习中：
 
 
@@ -398,6 +399,8 @@ sqlmap -u "题目的url" \
 `sqlmap -u "..." --batch -D "数据库" --tables`	**(爆破数据库的表)**
 
 `sqlmap -u "..." --batch -D "数据库名" -T "表名" --dump`	**(爆破表内数据)**
+
+---
 
 ---
 

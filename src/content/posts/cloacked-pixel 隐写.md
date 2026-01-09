@@ -8,6 +8,7 @@ description: "CTF 学习笔记与技术复盘"
 category: 知识点
 tags: [知识点]
 ---
+
 # #cloacked-pixel
 
 ![alt text](/images/QQ20251211-211642.png)
@@ -23,6 +24,8 @@ tags: [知识点]
 这是出题人github上的一个爆破工具，挺好用的，默认的密码词典就是rock。
 
 以后要再看见这个题目就用这个工具秒了。
+
+---
 
 ---
 

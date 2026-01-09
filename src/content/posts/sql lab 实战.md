@@ -8,6 +8,7 @@ description: "CTF 学习笔记与技术复盘"
 category: 学习
 tags: [学习]
 ---
+
 # #SQL LAB 实战：
 
 ## #1：
@@ -1744,6 +1745,8 @@ $sql="SELECT * FROM users WHERE username=$cookee1 LIMIT 0,1";
 ```
 
 这边的cookie被双引号包裹，而上一题的是单引号，小区别。
+
+---
 
 ---
 

@@ -8,6 +8,7 @@ description: "CTF 学习笔记与技术复盘"
 category: 学习
 tags: [学习]
 ---
+
 应某个学长的强烈要求，才写的，你好。
 
 # #题目名：Regretful_Deser
@@ -786,6 +787,8 @@ except Exception as e:
 最后用python发送完请求后，去临时服务器上看就收获了flag。
 
 ![alt text](/images/6C7F80F50AC376128618E4DEB1707C5A.png)
+
+---
 
 ---
 

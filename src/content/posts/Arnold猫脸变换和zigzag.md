@@ -8,6 +8,7 @@ description: "CTF 学习笔记与技术复盘"
 category: 知识点
 tags: [知识点]
 ---
+
 # #Arnold猫脸变换和zigzag
 
 ![alt text](/images/QQ20251211-200341.png)
@@ -346,6 +347,8 @@ if __name__ == "__main__":
     cv2.imwrite(output_path, decrypted_bgr)
     print(f"图像已解密并保存为: {output_path}") # [cite: 91]
 ```
+
+---
 
 ---
 

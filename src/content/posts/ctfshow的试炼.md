@@ -8,6 +8,7 @@ description: "CTF 学习笔记与技术复盘"
 category: 刷题
 tags: [刷题]
 ---
+
 ctfshow的做题之路，这边我会把我感觉对自己很有帮助的题目以及wp写出来。
 
 # #1.签到·好玩的PHP
@@ -1190,6 +1191,8 @@ hasattr(     ,     ),代码检查。
 isinstance(     ,     ),判断类型。
 
 setattr(object, attribute, value),设置属性，赋值。
+
+---
 
 ---
 
