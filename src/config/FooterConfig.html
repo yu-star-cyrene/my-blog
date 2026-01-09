@@ -14,30 +14,31 @@
 </style>
 
 <script>
-  // 1. 界面修改：改标签和提示
-  var uiTimer = setInterval(function() {
+  // 1. 界面文字修改
+  var labelTimer = setInterval(function() {
       var mailInput = document.querySelector('input[name="mail"]');
       if (mailInput) {
-          mailInput.placeholder = "QQ号 或 邮箱 (自动头像)";
+          // --- 这里改成了你要求的文字 ---
+          mailInput.placeholder = "QQ号或者头像绝对路径";
+          
           var container = mailInput.closest('.el-input-group');
           if (container) {
               var label = container.querySelector('.el-input-group__prepend');
               if (label) label.innerText = "头像";
-              clearInterval(uiTimer);
+              clearInterval(labelTimer);
           }
       }
   }, 200);
 
-  // 2. 【黑科技】自动补全 @qq.com
-  // 监听输入框失去焦点事件 (blur)
-  document.addEventListener('focusout', function(e) {
-      if (e.target && e.target.name === 'mail') {
+  // 2. 自动补全 @qq.com 逻辑 (保留)
+  document.body.addEventListener('focusout', function(e) {
+      if (e.target && e.target.tagName === 'INPUT' && e.target.name === 'mail') {
           var val = e.target.value.trim();
-          // 如果是 5-13 位纯数字，就自动补上 @qq.com
+          // 如果是纯数字 (5-13位)，自动补全
           if (/^\d{5,13}$/.test(val)) {
               e.target.value = val + "@qq.com";
-              // 触发 input 事件，让 Vue/React 框架感知到变化
               e.target.dispatchEvent(new Event('input', { bubbles: true }));
+              e.target.dispatchEvent(new Event('change', { bubbles: true }));
           }
       }
   });
