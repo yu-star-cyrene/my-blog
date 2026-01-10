@@ -88,8 +88,9 @@ export const siteConfig: SiteConfig = {
 
     // 统计
     analytics: {
-        googleAnalyticsId: "",
-        microsoftClarityId: "",
+    googleAnalyticsId: "",
+    microsoftClarityId: "",
+    busuanzi: true, // 👈 添加这一行来开启访客数显示
     },
 
     // 字体与语言

@@ -43,422 +43,424 @@ java程序在组装对象时，就会自动调用对象的方法，然后去执�
 
 好吧，其实是不可能一个一个贴出来的，这边运用的程序叫jadx，因为题目给我们的是jar文件，我们直接看是看不懂的，那是给计算机看的，我们需要将jar里面的内容反编译成我们能看的内容，这个程序就是反编译java用的，re的装备。
 
-> package org.example;
->
-> import com.sun.net.httpserver.HttpExchange;
-> import com.sun.net.httpserver.HttpHandler;
-> import com.sun.net.httpserver.HttpServer;
-> import com.sun.xml.fastinfoset.EncodingConstants;
-> import java.io.BufferedReader;
-> import java.io.ByteArrayInputStream;
-> import java.io.IOException;
-> import java.io.InputStream;
-> import java.io.InputStreamReader;
-> import java.io.OutputStream;
-> import java.io.UnsupportedEncodingException;
-> import java.net.InetSocketAddress;
-> import java.net.URI;
-> import java.net.URLDecoder;
-> import java.nio.charset.StandardCharsets;
-> import java.util.Base64;
-> import java.util.HashMap;
-> import java.util.List;
-> import java.util.Map;
-> import java.util.concurrent.Executor;
->
-> /* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main.class */
-> public class Main {
->     public static void main(String[] args) throws Exception {
->         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
->         server.createContext("/", new IndexHandler());
->         server.createContext("/hello", new HelloHandler());
->         server.createContext("/api/echo", new EchoHandler());
->         server.setExecutor((Executor) null);
->         System.out.println("Server started at http://localhost:8080");
->         server.start();
->     }
->
-> package org.example;
->
-> import com.sun.net.httpserver.HttpExchange;
-> import com.sun.net.httpserver.HttpHandler;
-> import com.sun.net.httpserver.HttpServer;
-> import com.sun.xml.fastinfoset.EncodingConstants;
-> import java.io.BufferedReader;
-> import java.io.ByteArrayInputStream;
-> import java.io.IOException;
-> import java.io.InputStream;
-> import java.io.InputStreamReader;
-> import java.io.OutputStream;
-> import java.io.UnsupportedEncodingException;
-> import java.net.InetSocketAddress;
-> import java.net.URI;
-> import java.net.URLDecoder;
-> import java.nio.charset.StandardCharsets;
-> import java.util.Base64;
-> import java.util.HashMap;
-> import java.util.List;
-> import java.util.Map;
-> import java.util.concurrent.Executor;
->
-> /* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main.class */
-> public class Main {
->     public static void main(String[] args) throws Exception {
->         HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
->         server.createContext("/", new IndexHandler());
->         server.createContext("/hello", new HelloHandler());
->         server.createContext("/api/echo", new EchoHandler());
->         server.setExecutor((Executor) null);
->         System.out.println("Server started at http://localhost:8080");
->         server.start();
->     }
->
-> /* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main$IndexHandler.class */
-> static class IndexHandler implements HttpHandler {
->     IndexHandler() {
->     }
->
-> public void handle(HttpExchange exchange) throws IOException {
->     String method = exchange.getRequestMethod();
->     if (!"GET".equalsIgnoreCase(method)) {
->         Main.sendText(exchange, 405, "Method Not Allowed");
->     } else {
->         Main.sendHtml(exchange, EncodingConstants.UNEXPANDED_ENTITY_REFERENCE, "hello index");
->     }
-> }
->
-> }
->
-> /* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main$HelloHandler.class */
-> static class HelloHandler implements HttpHandler {
->     HelloHandler() {
->     }
->
-> public void handle(HttpExchange exchange) throws IOException {
->     if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
->         Main.sendText(exchange, 405, "Method Not Allowed");
->         return;
->     }
->     URI uri = exchange.getRequestURI();
->     Map<String, String> queryParams = Main.parseQuery(uri.getRawQuery());
->     String name = queryParams.getOrDefault("name", "World");
->     String response = "Hello, " + name + "!";
->     Main.sendText(exchange, EncodingConstants.UNEXPANDED_ENTITY_REFERENCE, response);
-> }
->
-> }
->
-> /* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main$EchoHandler.class */
-> static class EchoHandler implements HttpHandler {
->     EchoHandler() {
->     }
->
-> public void handle(HttpExchange exchange) throws IOException {
->     List<String> cookie = exchange.getRequestHeaders().get("Pass");
->     String pass = cookie.get(0);
->     if (!pass.equals("n1ght") && pass.hashCode() == "n1ght".hashCode()) {
->         List<String> echo = exchange.getRequestHeaders().get("echo");
->         String s = echo.get(0);
->         byte[] decode = Base64.getDecoder().decode(s);
->         try {
->             new SecurityObjectInputStream(new ByteArrayInputStream(decode)).readObject();
->         } catch (ClassNotFoundException e) {
->             throw new RuntimeException(e);
->         }
->     }
-> }
->
-> }
->
-> /* JADX INFO: Access modifiers changed from: private */
-> public static void sendText(HttpExchange exchange, int statusCode, String text) throws IOException {
->     byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
->     exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
->     exchange.sendResponseHeaders(statusCode, bytes.length);
->     OutputStream os = exchange.getResponseBody();
->     Throwable th = null;
->     try {
->         try {
->             os.write(bytes);
->             if (os != null) {
->                 if (0 != 0) {
->                     try {
->                         os.close();
->                         return;
->                     } catch (Throwable th2) {
->                         th.addSuppressed(th2);
->                         return;
->                     }
->                 }
->                 os.close();
->             }
->         } catch (Throwable th3) {
->             th = th3;
->             throw th3;
->         }
->     } catch (Throwable th4) {
->         if (os != null) {
->             if (th != null) {
->                 try {
->                     os.close();
->                 } catch (Throwable th5) {
->                     th.addSuppressed(th5);
->                 }
->             } else {
->                 os.close();
->             }
->         }
->         throw th4;
->     }
-> }
->
-> /* JADX INFO: Access modifiers changed from: private */
-> public static void sendHtml(HttpExchange exchange, int statusCode, String html) throws IOException {
->     byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
->     exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
->     exchange.sendResponseHeaders(statusCode, bytes.length);
->     OutputStream os = exchange.getResponseBody();
->     Throwable th = null;
->     try {
->         try {
->             os.write(bytes);
->             if (os != null) {
->                 if (0 != 0) {
->                     try {
->                         os.close();
->                         return;
->                     } catch (Throwable th2) {
->                         th.addSuppressed(th2);
->                         return;
->                     }
->                 }
->                 os.close();
->             }
->         } catch (Throwable th3) {
->             th = th3;
->             throw th3;
->         }
->     } catch (Throwable th4) {
->         if (os != null) {
->             if (th != null) {
->                 try {
->                     os.close();
->                 } catch (Throwable th5) {
->                     th.addSuppressed(th5);
->                 }
->             } else {
->                 os.close();
->             }
->         }
->         throw th4;
->     }
-> }
->
-> /* JADX WARN: Failed to apply debug info
-> java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.applyWithWiderIgnoreUnknown(TypeUpdate.java:74)
->     at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.applyDebugInfo(DebugInfoApplyVisitor.java:137)
->     at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.applyDebugInfo(DebugInfoApplyVisitor.java:133)
->     at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.searchAndApplyVarDebugInfo(DebugInfoApplyVisitor.java:75)
->     at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.lambda$applyDebugInfo$0(DebugInfoApplyVisitor.java:68)
->     at java.base/java.util.ArrayList.forEach(Unknown Source)
->     at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.applyDebugInfo(DebugInfoApplyVisitor.java:68)
->     at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.visit(DebugInfoApplyVisitor.java:55)
->  */
-> /* JADX WARN: Failed to calculate best type for var: r8v0 ??
-> java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.calculateFromBounds(FixTypesVisitor.java:156)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.setBestType(FixTypesVisitor.java:133)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.deduceType(FixTypesVisitor.java:238)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.tryDeduceTypes(FixTypesVisitor.java:221)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.visit(FixTypesVisitor.java:91)
->  */
-> /* JADX WARN: Failed to calculate best type for var: r8v0 ??
-> java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.calculateFromBounds(TypeInferenceVisitor.java:145)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.setBestType(TypeInferenceVisitor.java:123)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.lambda$runTypePropagation$1(TypeInferenceVisitor.java:101)
->     at java.base/java.util.ArrayList.forEach(Unknown Source)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.runTypePropagation(TypeInferenceVisitor.java:101)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.visit(TypeInferenceVisitor.java:75)
->  */
-> /* JADX WARN: Failed to calculate best type for var: r9v0 ??
-> java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.calculateFromBounds(FixTypesVisitor.java:156)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.setBestType(FixTypesVisitor.java:133)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.deduceType(FixTypesVisitor.java:238)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.tryDeduceTypes(FixTypesVisitor.java:221)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.visit(FixTypesVisitor.java:91)
->  */
-> /* JADX WARN: Failed to calculate best type for var: r9v0 ??
-> java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
->     at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.calculateFromBounds(TypeInferenceVisitor.java:145)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.setBestType(TypeInferenceVisitor.java:123)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.lambda$runTypePropagation$1(TypeInferenceVisitor.java:101)
->     at java.base/java.util.ArrayList.forEach(Unknown Source)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.runTypePropagation(TypeInferenceVisitor.java:101)
->     at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.visit(TypeInferenceVisitor.java:75)
->  */
-> /* JADX WARN: Multi-variable type inference failed. Error: java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.RegisterArg.getSVar()" because the return value of "jadx.core.dex.nodes.InsnNode.getResult()" is null
->     at jadx.core.dex.visitors.typeinference.AbstractTypeConstraint.collectRelatedVars(AbstractTypeConstraint.java:31)
->     at jadx.core.dex.visitors.typeinference.AbstractTypeConstraint.<init>(AbstractTypeConstraint.java:19)
->     at jadx.core.dex.visitors.typeinference.TypeSearch$1.<init>(TypeSearch.java:376)
->     at jadx.core.dex.visitors.typeinference.TypeSearch.makeMoveConstraint(TypeSearch.java:376)
->     at jadx.core.dex.visitors.typeinference.TypeSearch.makeConstraint(TypeSearch.java:361)
->     at jadx.core.dex.visitors.typeinference.TypeSearch.collectConstraints(TypeSearch.java:341)
->     at java.base/java.util.ArrayList.forEach(Unknown Source)
->     at jadx.core.dex.visitors.typeinference.TypeSearch.run(TypeSearch.java:60)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.runMultiVariableSearch(FixTypesVisitor.java:116)
->     at jadx.core.dex.visitors.typeinference.FixTypesVisitor.visit(FixTypesVisitor.java:91)
->  */
-> /* JADX WARN: Not initialized variable reg: 8, insn: 0x00e9: MOVE (r0 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY]) = (r8 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY] A[D('isr' java.io.InputStreamReader)]) A[TRY_LEAVE], block:B:53:0x00e9 */
-> /* JADX WARN: Not initialized variable reg: 9, insn: 0x00ed: MOVE (r0 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY]) = (r9 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY]), block:B:55:0x00ed */
-> /* JADX WARN: Type inference failed for: r8v0, names: [isr], types: [java.io.InputStreamReader] */
-> /* JADX WARN: Type inference failed for: r9v0, types: [java.lang.Throwable] */
-> private static String readBody(HttpExchange exchange) throws IOException {
->     ?? r8;
->     ?? r9;
->     InputStream is = exchange.getRequestBody();
->     Throwable th = null;
->     try {
->         try {
->             InputStreamReader inputStreamReader = new InputStreamReader(is, StandardCharsets.UTF_8);
->             Throwable th2 = null;
->             BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
->             Throwable th3 = null;
->             try {
->                 try {
->                     StringBuilder sb = new StringBuilder();
->                     while (true) {
->                         String line = bufferedReader.readLine();
->                         if (line == null) {
->                             break;
->                         }
->                         sb.append(line);
->                     }
->                     String string = sb.toString();
->                     if (bufferedReader != null) {
->                         if (0 != 0) {
->                             try {
->                                 bufferedReader.close();
->                             } catch (Throwable th4) {
->                                 th3.addSuppressed(th4);
->                             }
->                         } else {
->                             bufferedReader.close();
->                         }
->                     }
->                     if (inputStreamReader != null) {
->                         if (0 != 0) {
->                             try {
->                                 inputStreamReader.close();
->                             } catch (Throwable th5) {
->                                 th2.addSuppressed(th5);
->                             }
->                         } else {
->                             inputStreamReader.close();
->                         }
->                     }
->                     return string;
->                 } catch (Throwable th6) {
->                     if (bufferedReader != null) {
->                         if (th3 != null) {
->                             try {
->                                 bufferedReader.close();
->                             } catch (Throwable th7) {
->                                 th3.addSuppressed(th7);
->                             }
->                         } else {
->                             bufferedReader.close();
->                         }
->                     }
->                     throw th6;
->                 }
->             } finally {
->             }
->         } catch (Throwable th8) {
->             if (r8 != 0) {
->                 if (r9 != 0) {
->                     try {
->                         r8.close();
->                     } catch (Throwable th9) {
->                         r9.addSuppressed(th9);
->                     }
->                 } else {
->                     r8.close();
->                 }
->             }
->             throw th8;
->         }
->     } finally {
->         if (is != null) {
->             if (0 != 0) {
->                 try {
->                     is.close();
->                 } catch (Throwable th10) {
->                     th.addSuppressed(th10);
->                 }
->             } else {
->                 is.close();
->             }
->         }
->     }
-> }
->
-> /* JADX INFO: Access modifiers changed from: private */
-> public static Map<String, String> parseQuery(String query) throws UnsupportedEncodingException {
->     Map<String, String> result = new HashMap<>();
->     if (query == null || query.isEmpty()) {
->         return result;
->     }
->     String[] pairs = query.split("&");
->     for (String pair : pairs) {
->         int idx = pair.indexOf(61);
->         if (idx > 0 && idx < pair.length() - 1) {
->             String key = URLDecoder.decode(pair.substring(0, idx), String.valueOf(StandardCharsets.UTF_8));
->             String value = URLDecoder.decode(pair.substring(idx + 1), String.valueOf(StandardCharsets.UTF_8));
->             result.put(key, value);
->         } else if (idx == -1) {
->             String key2 = URLDecoder.decode(pair, String.valueOf(StandardCharsets.UTF_8));
->             result.put(key2, "");
->         }
->     }
->     return result;
-> } 
+```
+package org.example;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.xml.fastinfoset.EncodingConstants;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+
+/* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main.class */
+public class Main {
+ public static void main(String[] args) throws Exception {
+     HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+     server.createContext("/", new IndexHandler());
+     server.createContext("/hello", new HelloHandler());
+     server.createContext("/api/echo", new EchoHandler());
+     server.setExecutor((Executor) null);
+     System.out.println("Server started at http://localhost:8080");
+     server.start();
+ }
+
+package org.example;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import com.sun.xml.fastinfoset.EncodingConstants;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
+
+/* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main.class */
+public class Main {
+ public static void main(String[] args) throws Exception {
+     HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+     server.createContext("/", new IndexHandler());
+     server.createContext("/hello", new HelloHandler());
+     server.createContext("/api/echo", new EchoHandler());
+     server.setExecutor((Executor) null);
+     System.out.println("Server started at http://localhost:8080");
+     server.start();
+ }
+
+/* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main$IndexHandler.class */
+static class IndexHandler implements HttpHandler {
+ IndexHandler() {
+ }
+
+public void handle(HttpExchange exchange) throws IOException {
+ String method = exchange.getRequestMethod();
+ if (!"GET".equalsIgnoreCase(method)) {
+     Main.sendText(exchange, 405, "Method Not Allowed");
+ } else {
+     Main.sendHtml(exchange, EncodingConstants.UNEXPANDED_ENTITY_REFERENCE, "hello index");
+ }
+}
+
+}
+
+/* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main$HelloHandler.class */
+static class HelloHandler implements HttpHandler {
+ HelloHandler() {
+ }
+
+public void handle(HttpExchange exchange) throws IOException {
+ if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+     Main.sendText(exchange, 405, "Method Not Allowed");
+     return;
+ }
+ URI uri = exchange.getRequestURI();
+ Map<String, String> queryParams = Main.parseQuery(uri.getRawQuery());
+ String name = queryParams.getOrDefault("name", "World");
+ String response = "Hello, " + name + "!";
+ Main.sendText(exchange, EncodingConstants.UNEXPANDED_ENTITY_REFERENCE, response);
+}
+
+}
+
+/* loaded from: n1ght_web-1.0-SNAPSHOT-jar-with-dependencies.jar:org/example/Main$EchoHandler.class */
+static class EchoHandler implements HttpHandler {
+ EchoHandler() {
+ }
+
+public void handle(HttpExchange exchange) throws IOException {
+ List<String> cookie = exchange.getRequestHeaders().get("Pass");
+ String pass = cookie.get(0);
+ if (!pass.equals("n1ght") && pass.hashCode() == "n1ght".hashCode()) {
+     List<String> echo = exchange.getRequestHeaders().get("echo");
+     String s = echo.get(0);
+     byte[] decode = Base64.getDecoder().decode(s);
+     try {
+         new SecurityObjectInputStream(new ByteArrayInputStream(decode)).readObject();
+     } catch (ClassNotFoundException e) {
+         throw new RuntimeException(e);
+     }
+ }
+}
+
+}
+
+/* JADX INFO: Access modifiers changed from: private */
+public static void sendText(HttpExchange exchange, int statusCode, String text) throws IOException {
+ byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+ exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+ exchange.sendResponseHeaders(statusCode, bytes.length);
+ OutputStream os = exchange.getResponseBody();
+ Throwable th = null;
+ try {
+     try {
+         os.write(bytes);
+         if (os != null) {
+             if (0 != 0) {
+                 try {
+                     os.close();
+                     return;
+                 } catch (Throwable th2) {
+                     th.addSuppressed(th2);
+                     return;
+                 }
+             }
+             os.close();
+         }
+     } catch (Throwable th3) {
+         th = th3;
+         throw th3;
+     }
+ } catch (Throwable th4) {
+     if (os != null) {
+         if (th != null) {
+             try {
+                 os.close();
+             } catch (Throwable th5) {
+                 th.addSuppressed(th5);
+             }
+         } else {
+             os.close();
+         }
+     }
+     throw th4;
+ }
+}
+
+/* JADX INFO: Access modifiers changed from: private */
+public static void sendHtml(HttpExchange exchange, int statusCode, String html) throws IOException {
+ byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+ exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+ exchange.sendResponseHeaders(statusCode, bytes.length);
+ OutputStream os = exchange.getResponseBody();
+ Throwable th = null;
+ try {
+     try {
+         os.write(bytes);
+         if (os != null) {
+             if (0 != 0) {
+                 try {
+                     os.close();
+                     return;
+                 } catch (Throwable th2) {
+                     th.addSuppressed(th2);
+                     return;
+                 }
+             }
+             os.close();
+         }
+     } catch (Throwable th3) {
+         th = th3;
+         throw th3;
+     }
+ } catch (Throwable th4) {
+     if (os != null) {
+         if (th != null) {
+             try {
+                 os.close();
+             } catch (Throwable th5) {
+                 th.addSuppressed(th5);
+             }
+         } else {
+             os.close();
+         }
+     }
+     throw th4;
+ }
+}
+
+/* JADX WARN: Failed to apply debug info
+java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.applyWithWiderIgnoreUnknown(TypeUpdate.java:74)
+ at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.applyDebugInfo(DebugInfoApplyVisitor.java:137)
+ at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.applyDebugInfo(DebugInfoApplyVisitor.java:133)
+ at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.searchAndApplyVarDebugInfo(DebugInfoApplyVisitor.java:75)
+ at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.lambda$applyDebugInfo$0(DebugInfoApplyVisitor.java:68)
+ at java.base/java.util.ArrayList.forEach(Unknown Source)
+ at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.applyDebugInfo(DebugInfoApplyVisitor.java:68)
+ at jadx.core.dex.visitors.debuginfo.DebugInfoApplyVisitor.visit(DebugInfoApplyVisitor.java:55)
+*/
+/* JADX WARN: Failed to calculate best type for var: r8v0 ??
+java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.calculateFromBounds(FixTypesVisitor.java:156)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.setBestType(FixTypesVisitor.java:133)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.deduceType(FixTypesVisitor.java:238)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.tryDeduceTypes(FixTypesVisitor.java:221)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.visit(FixTypesVisitor.java:91)
+*/
+/* JADX WARN: Failed to calculate best type for var: r8v0 ??
+java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.calculateFromBounds(TypeInferenceVisitor.java:145)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.setBestType(TypeInferenceVisitor.java:123)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.lambda$runTypePropagation$1(TypeInferenceVisitor.java:101)
+ at java.base/java.util.ArrayList.forEach(Unknown Source)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.runTypePropagation(TypeInferenceVisitor.java:101)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.visit(TypeInferenceVisitor.java:75)
+*/
+/* JADX WARN: Failed to calculate best type for var: r9v0 ??
+java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.calculateFromBounds(FixTypesVisitor.java:156)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.setBestType(FixTypesVisitor.java:133)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.deduceType(FixTypesVisitor.java:238)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.tryDeduceTypes(FixTypesVisitor.java:221)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.visit(FixTypesVisitor.java:91)
+*/
+/* JADX WARN: Failed to calculate best type for var: r9v0 ??
+java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.InsnArg.getType()" because "changeArg" is null
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.moveListener(TypeUpdate.java:439)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.runListeners(TypeUpdate.java:232)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.requestUpdate(TypeUpdate.java:212)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeForSsaVar(TypeUpdate.java:183)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.updateTypeChecked(TypeUpdate.java:112)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:83)
+ at jadx.core.dex.visitors.typeinference.TypeUpdate.apply(TypeUpdate.java:56)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.calculateFromBounds(TypeInferenceVisitor.java:145)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.setBestType(TypeInferenceVisitor.java:123)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.lambda$runTypePropagation$1(TypeInferenceVisitor.java:101)
+ at java.base/java.util.ArrayList.forEach(Unknown Source)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.runTypePropagation(TypeInferenceVisitor.java:101)
+ at jadx.core.dex.visitors.typeinference.TypeInferenceVisitor.visit(TypeInferenceVisitor.java:75)
+*/
+/* JADX WARN: Multi-variable type inference failed. Error: java.lang.NullPointerException: Cannot invoke "jadx.core.dex.instructions.args.RegisterArg.getSVar()" because the return value of "jadx.core.dex.nodes.InsnNode.getResult()" is null
+ at jadx.core.dex.visitors.typeinference.AbstractTypeConstraint.collectRelatedVars(AbstractTypeConstraint.java:31)
+ at jadx.core.dex.visitors.typeinference.AbstractTypeConstraint.<init>(AbstractTypeConstraint.java:19)
+ at jadx.core.dex.visitors.typeinference.TypeSearch$1.<init>(TypeSearch.java:376)
+ at jadx.core.dex.visitors.typeinference.TypeSearch.makeMoveConstraint(TypeSearch.java:376)
+ at jadx.core.dex.visitors.typeinference.TypeSearch.makeConstraint(TypeSearch.java:361)
+ at jadx.core.dex.visitors.typeinference.TypeSearch.collectConstraints(TypeSearch.java:341)
+ at java.base/java.util.ArrayList.forEach(Unknown Source)
+ at jadx.core.dex.visitors.typeinference.TypeSearch.run(TypeSearch.java:60)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.runMultiVariableSearch(FixTypesVisitor.java:116)
+ at jadx.core.dex.visitors.typeinference.FixTypesVisitor.visit(FixTypesVisitor.java:91)
+*/
+/* JADX WARN: Not initialized variable reg: 8, insn: 0x00e9: MOVE (r0 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY]) = (r8 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY] A[D('isr' java.io.InputStreamReader)]) A[TRY_LEAVE], block:B:53:0x00e9 */
+/* JADX WARN: Not initialized variable reg: 9, insn: 0x00ed: MOVE (r0 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY]) = (r9 I:??[int, float, boolean, short, byte, char, OBJECT, ARRAY]), block:B:55:0x00ed */
+/* JADX WARN: Type inference failed for: r8v0, names: [isr], types: [java.io.InputStreamReader] */
+/* JADX WARN: Type inference failed for: r9v0, types: [java.lang.Throwable] */
+private static String readBody(HttpExchange exchange) throws IOException {
+ ?? r8;
+ ?? r9;
+ InputStream is = exchange.getRequestBody();
+ Throwable th = null;
+ try {
+     try {
+         InputStreamReader inputStreamReader = new InputStreamReader(is, StandardCharsets.UTF_8);
+         Throwable th2 = null;
+         BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+         Throwable th3 = null;
+         try {
+             try {
+                 StringBuilder sb = new StringBuilder();
+                 while (true) {
+                     String line = bufferedReader.readLine();
+                     if (line == null) {
+                         break;
+                     }
+                     sb.append(line);
+                 }
+                 String string = sb.toString();
+                 if (bufferedReader != null) {
+                     if (0 != 0) {
+                         try {
+                             bufferedReader.close();
+                         } catch (Throwable th4) {
+                             th3.addSuppressed(th4);
+                         }
+                     } else {
+                         bufferedReader.close();
+                     }
+                 }
+                 if (inputStreamReader != null) {
+                     if (0 != 0) {
+                         try {
+                             inputStreamReader.close();
+                         } catch (Throwable th5) {
+                             th2.addSuppressed(th5);
+                         }
+                     } else {
+                         inputStreamReader.close();
+                     }
+                 }
+                 return string;
+             } catch (Throwable th6) {
+                 if (bufferedReader != null) {
+                     if (th3 != null) {
+                         try {
+                             bufferedReader.close();
+                         } catch (Throwable th7) {
+                             th3.addSuppressed(th7);
+                         }
+                     } else {
+                         bufferedReader.close();
+                     }
+                 }
+                 throw th6;
+             }
+         } finally {
+         }
+     } catch (Throwable th8) {
+         if (r8 != 0) {
+             if (r9 != 0) {
+                 try {
+                     r8.close();
+                 } catch (Throwable th9) {
+                     r9.addSuppressed(th9);
+                 }
+             } else {
+                 r8.close();
+             }
+         }
+         throw th8;
+     }
+ } finally {
+     if (is != null) {
+         if (0 != 0) {
+             try {
+                 is.close();
+             } catch (Throwable th10) {
+                 th.addSuppressed(th10);
+             }
+         } else {
+             is.close();
+         }
+     }
+ }
+}
+
+/* JADX INFO: Access modifiers changed from: private */
+public static Map<String, String> parseQuery(String query) throws UnsupportedEncodingException {
+ Map<String, String> result = new HashMap<>();
+ if (query == null || query.isEmpty()) {
+     return result;
+ }
+ String[] pairs = query.split("&");
+ for (String pair : pairs) {
+     int idx = pair.indexOf(61);
+     if (idx > 0 && idx < pair.length() - 1) {
+         String key = URLDecoder.decode(pair.substring(0, idx), String.valueOf(StandardCharsets.UTF_8));
+         String value = URLDecoder.decode(pair.substring(idx + 1), String.valueOf(StandardCharsets.UTF_8));
+         result.put(key, value);
+     } else if (idx == -1) {
+         String key2 = URLDecoder.decode(pair, String.valueOf(StandardCharsets.UTF_8));
+         result.put(key2, "");
+     }
+ }
+ return result;
+} 
+```
 
 ![alt text](/images/QQ20251209-171408.png)
 
