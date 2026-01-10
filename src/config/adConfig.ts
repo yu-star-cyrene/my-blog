@@ -15,9 +15,9 @@ export const adConfig1: AdConfig = {
 };
 
 export const adConfig2: AdConfig = {
-    title: "夸夸小余",
+    title: "",
     image: {
-        src: "/assets/images/d2.webp",
+        src: "/assets/images/praise.png",
         alt: "求夸夸",
         link: "",
         external: false,
