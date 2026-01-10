@@ -30,7 +30,7 @@ export const siteConfig: SiteConfig = {
     // Favicon 配置
     favicon: [
         {
-            src: "/assets/images/favicon.ico",
+            src: "/images/Gemini_Generated_Image_vlz823vlz823vlz8 (1).png",
         },
     ],
 
@@ -39,7 +39,7 @@ export const siteConfig: SiteConfig = {
         // 导航栏 Logo
         logo: {
 			type: "image",
-			value: "/assets/images/firefly.png",
+			value: "/images/Gemini_Generated_Image_nmx44gnmx44gnmx4 (1).png",
 			alt: "Logo",
 		},
         // 导航栏标题
