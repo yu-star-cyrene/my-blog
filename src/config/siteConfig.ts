@@ -6,10 +6,10 @@ const SITE_LANG = "zh_CN";
 
 export const siteConfig: SiteConfig = {
     // 站点标题
-    title: "小余",
+    title: "莫中",
 
     // 站点副标题
-    subtitle: "ciallo！！！",
+    subtitle: "他人一计",
 
     // 站点 URL
     site_url: "https://sliver-yu.cc",
@@ -22,7 +22,7 @@ export const siteConfig: SiteConfig = {
 
     // 主题色
     themeColor: {
-        hue: 15,
+        hue: 0,
         fixed: false,
         defaultMode: "system",
     },
@@ -38,10 +38,10 @@ export const siteConfig: SiteConfig = {
     navbar: {
         // 导航栏 Logo
         logo: {
-    type: "image",
-    value: "/assets/images/firefly.png",
-    alt: "Logo",
-  },
+			type: "image",
+			value: "/assets/images/firefly.png",
+			alt: "Logo",
+		},
         // 导航栏标题
         title: "在下余林阳",
         widthFull: false,
