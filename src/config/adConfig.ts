@@ -1,63 +1,113 @@
 import type { AdConfig } from "../types/config";
 
-// 这里只是配置广告内容，如果要开关请在sidebarConfig.ts中控制侧边栏组件的的启用组件即可
-
-// 广告配置1 - 纯图片广告（无边距）
+// 顶部横幅保持不变
 export const adConfig1: AdConfig = {
-	image: {
-		src: "/assets/images/d1.webp",
-		alt: "广告横幅",
-		link: "#",
-		external: true,
-	},
-
-	// 是否允许关闭广告
-	closable: true,
-
-	// 显示次数限制，-1为无限制
-	displayCount: -1,
-
-	// 组件内边距配置，可通过取消注释生效
-	padding: {
-		// 零边距，图片占满整个组件
-		all: "0",
-
-		// 四边1rem边距
-		// all: "1rem",
-
-		// 顶部无边距
-		// top: "0",
-
-		// 右侧无边距
-		// right: "1rem",
-
-		// 底部无边距
-		// bottom: "1rem",
-
-		// 左侧无边距
-		// left: "1rem",
-	},
+    image: {
+        src: "/assets/images/d1.webp",
+        alt: "广告横幅",
+        link: "#",
+        external: true,
+    },
+    closable: true,
+    displayCount: -1,
+    padding: { all: "0" },
 };
 
-// 广告配置2 - 完整内容广告
+// === 侧边栏点赞卡片 (红色版) ===
 export const adConfig2: AdConfig = {
-	title: "支持博主",
-	content:
-		"如果您觉得本站内容对您有帮助，欢迎支持我们的创作！您的支持是我们持续更新的动力。",
-	image: {
-		src: "/assets/images/d2.webp",
-		alt: "支持博主",
-		link: "about/",
-		external: false,
-	},
-	link: {
-		text: "支持一下",
-		url: "about/",
-		external: false,
-	},
-	closable: true,
-	displayCount: -1,
-	padding: {
-		// all: "1rem",
-	},
+    title: "支持博主", // 标题修改
+    
+    // 如果你有图片，请确保路径正确；如果没有，可以留空 src
+    image: {
+        src: "/assets/images/d2.webp", 
+        alt: "点赞",
+        link: "",
+        external: false,
+    },
+
+    content: `
+    <div style="text-align: center;">
+      <p style="font-size: 0.9rem; margin-bottom: 1rem; opacity: 0.8;">
+        觉得文章写得不错？<br>点个赞支持一下吧！
+      </p>
+      
+      <button id="global-like-btn" style="
+        background: #ef4444; 
+        color: white; 
+        border-radius: 99px; 
+        padding: 8px 24px; 
+        font-weight: bold; 
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+        border: none;
+        outline: none;
+        box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
+      " onmouseover="this.style.transform='scale(1.05)';this.style.background='#dc2626'" onmouseout="this.style.transform='scale(1)';this.style.background='#ef4444'">
+        <span>❤️ 点赞本站</span>
+        <span id="global-like-count" style="background:rgba(255,255,255,0.2); padding: 0 8px; border-radius: 12px; font-size: 0.9em;">0</span>
+      </button>
+
+      <script>
+        (function() {
+           const APP_ID = "egB5SxnIsG2BkAqm2c0f15I9-MdYXbMMI";
+           const APP_KEY = "Z39KNTONWBkZITawt54qf5eA";
+           const SERVER_URL = "https://egb5sxni.api.lncldglobal.com";
+           
+           function startGlobalLike() {
+             if(typeof AV === 'undefined') return;
+             if(!AV.applicationId) AV.init({ appId: APP_ID, appKey: APP_KEY, serverURLs: SERVER_URL });
+             
+             const query = new AV.Query('GlobalLikes');
+             const btn = document.getElementById('global-like-btn');
+             const count = document.getElementById('global-like-count');
+             
+             // 获取数据
+             query.equalTo('id', 'site_global');
+             query.first().then(res => {
+               if(res) count.innerText = res.get('likes');
+               else count.innerText = '0';
+             }).catch(e => { count.innerText = '0'; });
+
+             // 点击事件
+             btn.onclick = function() {
+               if(btn.dataset.loading) return;
+               btn.dataset.loading = "true";
+               
+               query.first().then(res => {
+                 if(res) {
+                   res.increment('likes', 1);
+                   return res.save();
+                 } else {
+                   const NewObj = AV.Object.extend('GlobalLikes');
+                   const obj = new NewObj();
+                   obj.set('id', 'site_global');
+                   obj.set('likes', 1);
+                   return obj.save();
+                 }
+               }).then(saved => {
+                 count.innerText = saved.get('likes');
+                 const originalHTML = btn.innerHTML;
+                 btn.innerHTML = "<span>🌹 谢谢!</span>";
+                 setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    document.getElementById('global-like-count').innerText = saved.get('likes');
+                    delete btn.dataset.loading;
+                 }, 1500);
+               });
+             }
+           }
+
+           const timer = setInterval(() => {
+             if(window.AV) { startGlobalLike(); clearInterval(timer); }
+           }, 500);
+        })();
+      </script>
+    </div>
+    `,
+    closable: true,
+    displayCount: -1,
+    padding: { all: "1rem" },
 };

@@ -156,9 +156,10 @@ const paddingClass = getPaddingStyle();
     <!-- 文本内容 -->
     {
       currentAdConfig.content && (
-        <p class="text-sm text-center mb-3 leading-relaxed text-neutral-600 dark:text-neutral-300 transition">
-          {currentAdConfig.content}
-        </p>
+        <div 
+          class="text-sm text-center mb-3 leading-relaxed text-neutral-600 dark:text-neutral-300 transition"
+          set:html={currentAdConfig.content}
+        />
       )
     }
 
