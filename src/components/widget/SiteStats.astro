@@ -4,15 +4,15 @@ import { siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import {
-	getCategoryList,
-	getSortedPosts,
-	getTagList,
+    getCategoryList,
+    getSortedPosts,
+    getTagList,
 } from "@/utils/content-utils";
 import WidgetLayout from "./WidgetLayout.astro";
 
 interface Props {
-	class?: string;
-	style?: string;
+    class?: string;
+    style?: string;
 }
 
 const { class: className, style } = Astro.props;
@@ -26,72 +26,72 @@ const tags = await getTagList();
 // 计算总字数
 let totalWords = 0;
 for (const post of posts) {
-	if (post.body) {
-		// 移除 Markdown 空白字符后计算字数
-		const text = post.body
-			.replace(/\s+/g, " ") // 合并空白
-			.trim();
-		// 分别计算中文字符和英文单词
-		const chineseChars = text.match(/[\u4e00-\u9fa5]/g) || [];
-		const englishWords = text.match(/[a-zA-Z]+/g) || [];
+    if (post.body) {
+        // 移除 Markdown 空白字符后计算字数
+        const text = post.body
+            .replace(/\s+/g, " ") // 合并空白
+            .trim();
+        // 分别计算中文字符和英文单词
+        const chineseChars = text.match(/[\u4e00-\u9fa5]/g) || [];
+        const englishWords = text.match(/[a-zA-Z]+/g) || [];
 
-		totalWords += chineseChars.length + englishWords.length;
-	}
+        totalWords += chineseChars.length + englishWords.length;
+    }
 }
 
 // 格式化数字（添加千位分隔符）
 function formatNumber(num: number): string {
-	return num.toLocaleString();
+    return num.toLocaleString();
 }
 
 // 获取最新文章日期（用于客户端计算）
 const latestPost = posts.reduce((latest, post) => {
-	if (!latest) return post;
-	return post.data.published > latest.data.published ? post : latest;
+    if (!latest) return post;
+    return post.data.published > latest.data.published ? post : latest;
 }, posts[0]);
 const lastPostDate = latestPost
-	? latestPost.data.published.toISOString()
-	: null;
+    ? latestPost.data.published.toISOString()
+    : null;
 
 const todayText = i18n(I18nKey.today);
 const stats = [
-	{
-		icon: "material-symbols:article-outline",
-		label: i18n(I18nKey.siteStatsPostCount),
-		value: posts.length,
-	},
-	{
-		icon: "material-symbols:folder-outline",
-		label: i18n(I18nKey.siteStatsCategoryCount),
-		value: categories.length,
-	},
-	{
-		icon: "material-symbols:label-outline",
-		label: i18n(I18nKey.siteStatsTagCount),
-		value: tags.length,
-	},
-	{
-		icon: "material-symbols:text-ad-outline-rounded",
-		label: i18n(I18nKey.siteStatsTotalWords),
-		value: totalWords,
-		formatted: true,
-	},
-	{
-		icon: "material-symbols:calendar-clock-outline",
-		label: i18n(I18nKey.siteStatsRunningDays),
-		value: 0, // 将由客户端更新
-		suffix: i18n(I18nKey.siteStatsDays).replace("{days}", ""),
-		dynamic: true,
-		id: "running-days",
-	},
-	{
-		icon: "material-symbols:ecg-heart-outline",
-		label: i18n(I18nKey.siteStatsLastUpdate),
-		value: 0, // 将由客户端更新
-		suffix: i18n(I18nKey.siteStatsDaysAgo).replace("{days}", ""),
-		dynamic: true,
-		id: "last-update",
-	},
+    {
+        icon: "material-symbols:article-outline",
+        label: i18n(I18nKey.siteStatsPostCount),
+        value: posts.length,
+    },
+    {
+        icon: "material-symbols:folder-outline",
+        label: i18n(I18nKey.siteStatsCategoryCount),
+        value: categories.length,
+    },
+    {
+        icon: "material-symbols:label-outline",
+        label: i18n(I18nKey.siteStatsTagCount),
+        value: tags.length,
+    },
+    {
+        icon: "material-symbols:text-ad-outline-rounded",
+        label: i18n(I18nKey.siteStatsTotalWords),
+        value: totalWords,
+        formatted: true,
+    },
+    {
+        icon: "material-symbols:calendar-clock-outline",
+        label: i18n(I18nKey.siteStatsRunningDays),
+        value: 0, // 将由客户端更新
+        suffix: i18n(I18nKey.siteStatsDays).replace("{days}", ""),
+        dynamic: true,
+        id: "running-days",
+    },
+    {
+        icon: "material-symbols:ecg-heart-outline",
+        label: i18n(I18nKey.siteStatsLastUpdate),
+        value: 0, // 将由客户端更新
+        suffix: i18n(I18nKey.siteStatsDaysAgo).replace("{days}", ""),
+        dynamic: true,
+        id: "last-update",
+    },
 ];
 ---
 
@@ -108,7 +108,7 @@ const stats = [
           </span>
         </div>
         <div class="flex items-center">
-          <span 
+          <span
             class="text-base font-bold text-neutral-900 dark:text-neutral-100"
             data-stat-id={stat.id}
           >
@@ -123,6 +123,7 @@ const stats = [
       </div>
     ))}
 
+    {/* 访客数组件 (修复版) */}
     <div class="flex items-center justify-between px-3 py-1.5">
         <div class="flex items-center gap-2.5">
             <div class="text-[var(--primary)] text-xl">
@@ -134,7 +135,10 @@ const stats = [
         </div>
         <div class="flex items-center">
             <span class="text-base font-bold text-neutral-900 dark:text-neutral-100">
-                <span id="busuanzi_value_site_uv">--</span>
+                {/* 注意：这里把 id 改为了 sidebar_stats_uv，避免和页脚冲突。
+                   数据将通过下面的脚本从页脚“镜像”过来。
+                */}
+                <span id="sidebar_stats_uv">--</span>
             </span>
             <span class="text-sm text-neutral-500 dark:text-neutral-400 ml-1">人</span>
         </div>
@@ -144,49 +148,60 @@ const stats = [
 </WidgetLayout>
 
 <script is:inline define:vars={{ siteStartDate, lastPostDate, todayText }}>
+  // 1. 原始的动态时间更新逻辑
   function updateDynamicStats() {
     const today = new Date();
-    
-    // 更新运行天数
     const startDate = new Date(siteStartDate);
     const diffTime = Math.abs(today.getTime() - startDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     const runningDaysElement = document.querySelector('[data-stat-id="running-days"]');
     if (runningDaysElement) {
       runningDaysElement.textContent = diffDays.toString();
     }
-    
-    // 更新最后活动时间
+
     if (lastPostDate) {
       const lastPost = new Date(lastPostDate);
       const timeSinceLastPost = Math.abs(today.getTime() - lastPost.getTime());
       const daysSinceLastUpdate = Math.floor(timeSinceLastPost / (1000 * 60 * 60 * 24));
-      
       const lastUpdateElement = document.querySelector('[data-stat-id="last-update"]');
       if (lastUpdateElement) {
         if (daysSinceLastUpdate === 0) {
           lastUpdateElement.textContent = todayText;
-          if (lastUpdateElement.nextElementSibling) {
-            lastUpdateElement.nextElementSibling.style.display = 'none';
-          }
+          if (lastUpdateElement.nextElementSibling) lastUpdateElement.nextElementSibling.style.display = 'none';
         } else {
           lastUpdateElement.textContent = daysSinceLastUpdate.toString();
-          if (lastUpdateElement.nextElementSibling) {
-            lastUpdateElement.nextElementSibling.style.display = '';
-          }
+          if (lastUpdateElement.nextElementSibling) lastUpdateElement.nextElementSibling.style.display = '';
         }
       }
     }
   }
 
-  // 页面加载时更新
-  updateDynamicStats();
-  // 每小时更新一次
-  setInterval(updateDynamicStats, 60 * 60 * 1000);
+  // 2. 新增：不蒜子数据镜像逻辑 (页脚 -> 侧边栏)
+  function syncBusuanziStats() {
+    // 获取页脚的元素（数据源）
+    const footerElem = document.getElementById('busuanzi_value_site_uv');
+    // 获取侧边栏的元素（目标）
+    const sidebarElem = document.getElementById('sidebar_stats_uv');
+    
+    // 如果页脚有数据（不是 --），且侧边栏还没数据，就复制过来
+    if (footerElem && sidebarElem && footerElem.innerText !== '--') {
+        sidebarElem.innerText = footerElem.innerText;
+    }
+  }
 
-  // 页面切换时重新更新
+  // 初始化
+  updateDynamicStats();
+  
+  // 启动定时器：处理时间更新
+  setInterval(updateDynamicStats, 60 * 60 * 1000);
+  
+  // 启动定时器：处理访客数同步 (每秒检查一次，确保页脚加载完后能同步过来)
+  setInterval(syncBusuanziStats, 1000);
+
+  // 页面切换兼容
   document.addEventListener("swup:contentReplaced", () => {
     setTimeout(updateDynamicStats, 100);
+    setTimeout(syncBusuanziStats, 500); // 切换页面后重新同步
   });
 </script>
