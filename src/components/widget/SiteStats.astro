@@ -148,58 +148,44 @@ const stats = [
 </WidgetLayout>
 
 <script is:inline define:vars={{ siteStartDate, lastPostDate, todayText }}>
+  // 使用封装函数避免全局冲突
+  (function() {
+    function updateStats() {
+      const today = new Date();
+      const startDate = new Date(siteStartDate);
+      const diffDays = Math.ceil(Math.abs(today - startDate) / (1000 * 60 * 60 * 24));
+      const el = document.querySelector('[data-stat-id="running-days"]');
+      if (el) el.textContent = diffDays;
 
-<script is:inline define:vars={{ siteStartDate, lastPostDate, todayText }}>
-  function updateDynamicStats() {
-    const today = new Date();
-    const startDate = new Date(siteStartDate);
-    const diffTime = Math.abs(today.getTime() - startDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    const runningDaysElement = document.querySelector('[data-stat-id="running-days"]');
-    if (runningDaysElement) runningDaysElement.textContent = diffDays.toString();
-
-    if (lastPostDate) {
-      const lastPost = new Date(lastPostDate);
-      const timeSinceLastPost = Math.abs(today.getTime() - lastPost.getTime());
-      const daysSinceLastUpdate = Math.floor(timeSinceLastPost / (1000 * 60 * 60 * 24));
-      const lastUpdateElement = document.querySelector('[data-stat-id="last-update"]');
-      if (lastUpdateElement) {
-        if (daysSinceLastUpdate === 0) {
-          lastUpdateElement.textContent = todayText;
-          if (lastUpdateElement.nextElementSibling) lastUpdateElement.nextElementSibling.style.display = 'none';
-        } else {
-          lastUpdateElement.textContent = daysSinceLastUpdate.toString();
-          if (lastUpdateElement.nextElementSibling) lastUpdateElement.nextElementSibling.style.display = '';
+      if (lastPostDate) {
+        const lastUpdate = document.querySelector('[data-stat-id="last-update"]');
+        if (lastUpdate) {
+          const days = Math.floor(Math.abs(today - new Date(lastPostDate)) / (1000 * 60 * 60 * 24));
+          lastUpdate.textContent = days === 0 ? todayText : days;
+          if (lastUpdate.nextElementSibling) lastUpdate.nextElementSibling.style.display = days === 0 ? 'none' : '';
         }
       }
     }
-  }
 
-  function syncBusuanzi() {
-    const src = document.getElementById('busuanzi_value_site_uv');
-    const target = document.getElementById('sidebar_stats_uv');
-    if (src && target && src.innerText !== '--' && src.innerText.trim() !== '') {
-      target.innerText = src.innerText;
+    function syncBusuanzi() {
+      const src = document.getElementById('busuanzi_value_site_uv');
+      const target = document.getElementById('sidebar_stats_uv');
+      if (src && target && src.innerText !== '--' && src.innerText.trim() !== '') {
+        target.innerText = src.innerText;
+        return true;
+      }
+      return false;
     }
-  }
 
-  // 1. 初始执行
-  updateDynamicStats();
-  
-  // 2. 强力轮询（解决不蒜子加载慢的问题）
-  const timer = setInterval(() => {
-    syncBusuanzi();
-    // 如果已经拿到数据了，可以适当放慢检查频率
-    const target = document.getElementById('sidebar_stats_uv');
-    if (target && target.innerText !== '--') {
-       // 拿到数据后每 5 秒同步一次即可
-    }
-  }, 1000);
+    updateStats();
+    // 强力同步计时器
+    const timer = setInterval(() => {
+      if (syncBusuanzi()) clearInterval(timer);
+    }, 1500);
 
-  // 3. 兼容 Astro/Swup 页面跳转
-  document.addEventListener("swup:contentReplaced", () => {
-    updateDynamicStats();
-    setTimeout(syncBusuanzi, 500);
-    setTimeout(syncBusuanzi, 2000);
-  });
+    document.addEventListener("astro:page-load", () => {
+      updateStats();
+      syncBusuanzi();
+    });
+  })();
 </script>
