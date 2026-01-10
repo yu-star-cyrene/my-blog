@@ -257,7 +257,7 @@ const jsonLd = {
 
                 if (!window.AV) {
                     const script = document.createElement('script');
-                    script.src = 'https://unpkg.com/leancloud-storage@4.15.0/dist/av-min.js';
+                    script.src = 'https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.0/dist/av-min.js';
                     document.head.appendChild(script);
                     script.onload = initLeanCloud;
                 } else {
@@ -273,29 +273,44 @@ const jsonLd = {
                     const countSpan = document.getElementById('article-like-count');
                     const btn = document.getElementById('article-like-btn');
 
+                    // 容错获取
                     query.first().then((result) => {
                         if (result) countSpan.innerText = result.get('likes') || 0;
                         else countSpan.innerText = 0;
-                    }).catch(e => { countSpan.innerText = 0; });
+                    }).catch(() => {
+                        countSpan.innerText = 0;
+                    });
 
                     btn.addEventListener('click', () => {
                         if(btn.dataset.loading) return;
                         btn.dataset.loading = true;
+                        
+                        const saveNew = () => {
+                            const LikeObj = AV.Object.extend('ArticleLikes');
+                            const newLike = new LikeObj();
+                            newLike.set('slug', postSlug);
+                            newLike.set('likes', 1);
+                            return newLike.save();
+                        };
+
                         query.first().then((result) => {
                             if (result) {
                                 result.increment('likes', 1);
                                 return result.save();
                             } else {
-                                const LikeObj = AV.Object.extend('ArticleLikes');
-                                const newLike = new LikeObj();
-                                newLike.set('slug', postSlug);
-                                newLike.set('likes', 1);
-                                return newLike.save();
+                                return saveNew();
                             }
+                        }).catch((e) => {
+                            // 遇到404错误，直接新建
+                            console.log('Capture error, trying create...');
+                            return saveNew();
                         }).then((saved) => {
                             countSpan.innerText = saved.get('likes');
                             btn.style.transform = "scale(1.1)";
                             setTimeout(() => btn.style.transform = "scale(1)", 200);
+                        }).catch((e) => {
+                            console.error(e);
+                            alert('点赞失败，请检查网络或配置');
                         }).finally(() => delete btn.dataset.loading);
                     });
                 }
