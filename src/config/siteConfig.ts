@@ -22,7 +22,7 @@ export const siteConfig: SiteConfig = {
 
     // 主题色
     themeColor: {
-        hue: 165,
+        hue: 15,
         fixed: false,
         defaultMode: "system",
     },
@@ -38,10 +38,10 @@ export const siteConfig: SiteConfig = {
     navbar: {
         // 导航栏 Logo
         logo: {
-			type: "text",
-			value: "",
-			alt: "",
-		},
+    type: "image",
+    value: "/assets/images/firefly.png",
+    alt: "Logo",
+  },
         // 导航栏标题
         title: "在下余林阳",
         widthFull: false,
