@@ -91,10 +91,6 @@ const bannerOffset = `${BANNER_HEIGHT_EXTEND / 2}vh`;
               <MicrosoftClarity clarityId={siteConfig.analytics.microsoftClarityId} />
       )}
 
-      {siteConfig.analytics?.busuanzi && (
-        <script is:inline src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-      )}
-
       <meta name="referrer" content="no-referrer-when-downgrade">
 
     <title>{pageTitle}</title>
@@ -300,6 +296,7 @@ const bannerOffset = `${BANNER_HEIGHT_EXTEND / 2}vh`;
           }
         });
       })();
+    })();
     </script>
     <style define:vars={{ configHue, "page-width": `${PAGE_WIDTH}rem`, }}></style>
     <slot name="head" />
