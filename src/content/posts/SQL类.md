@@ -171,11 +171,17 @@ sqlmap -u "http://localhost/Less-10/?id=1" \
 
 
 
+
+
+
+
 ---
 
 
 
-## #
+## #爆破时：
+
+**`sqlmap` 使用其内置的字典来猜列名，可以使用 `--common-columns` 参数**
 
 
 

