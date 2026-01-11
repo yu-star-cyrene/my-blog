@@ -9,6 +9,7 @@ import {
     getTagList,
 } from "@/utils/content-utils";
 import WidgetLayout from "./WidgetLayout.astro";
+import fs from 'node:fs';
 
 interface Props {
     class?: string;
@@ -44,13 +45,27 @@ function formatNumber(num: number): string {
     return num.toLocaleString();
 }
 
-// 获取最新文章日期（用于客户端计算）
-const latestPost = posts.reduce((latest, post) => {
-    if (!latest) return post;
-    return post.data.published > latest.data.published ? post : latest;
-}, posts[0]);
-const lastPostDate = latestPost
-    ? latestPost.data.published.toISOString()
+// [修改逻辑] 遍历所有文章，取“published日期”与“文件物理修改日期”中的最大值
+const activityTimestamps = posts.map(post => {
+    const pubTime = post.data.published.getTime();
+    try {
+        const baseDir = "src/content/posts/";
+        const mdPath = `${baseDir}${post.id}.md`;
+        const mdxPath = `${baseDir}${post.id}.mdx`;
+        const actualPath = fs.existsSync(mdPath) ? mdPath : mdxPath;
+        const stats = fs.statSync(actualPath);
+        return Math.max(pubTime, stats.mtimeMs);
+    } catch (e) {
+        return pubTime;
+    }
+});
+
+const finalLastActivityTime = activityTimestamps.length > 0 
+    ? Math.max(...activityTimestamps) 
+    : null;
+
+const lastPostDate = finalLastActivityTime 
+    ? new Date(finalLastActivityTime).toISOString() 
     : null;
 
 const todayText = i18n(I18nKey.today);
