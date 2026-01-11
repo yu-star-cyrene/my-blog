@@ -6,10 +6,10 @@ const SITE_LANG = "zh_CN";
 
 export const siteConfig: SiteConfig = {
     // 站点标题
-    title: "莫中",
+    title: "莫中他人一计",
 
     // 站点副标题
-    subtitle: "他人一计",
+    subtitle: "-",
 
     // 站点 URL
     site_url: "https://sliver-yu.cc",
