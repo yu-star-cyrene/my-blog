@@ -1,0 +1,50 @@
+name: 部署到 GitHub Pages
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# 防止多次重复构建：新任务开始时自动取消旧任务
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write      # 必须：增加删除历史记录的权限
+
+jobs:
+  build:
+    name: 构建网站
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install
+      - run: pnpm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    name: 部署到 GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - name: 执行部署
+        uses: actions/deploy-pages@v4
+
+      # 【新增】自动清理 3 天前的历史记录
+      - name: 清理 3 天前的历史任务
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run list --limit 100 --json databaseId,createdAt -q ".[] | select(.createdAt < \"$(date -Iseconds -d '3 days ago')\") | .databaseId" | xargs -I {} gh run delete {} || true
