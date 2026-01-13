@@ -1,6 +1,6 @@
 ---
 title: "SQL大赏！！！！"
-image: ''
+image: "/images/138100443_p0_master1200.jpg"
 pinned: false
 comment: true
 published: 2025-12-11
@@ -854,3 +854,8 @@ sqlmap确实很好用。
 ---
 
 * **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
+
+
+---
+
+- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

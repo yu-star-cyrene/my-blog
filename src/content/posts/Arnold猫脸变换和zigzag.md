@@ -1,6 +1,6 @@
 ---
 title: "Arnold猫脸变换和zigzag"
-image: ''
+image: "/images/138146004_p0_master1200.jpg"
 pinned: false
 comment: true
 published: 2025-12-11

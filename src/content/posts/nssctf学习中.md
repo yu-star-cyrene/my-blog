@@ -849,7 +849,7 @@ fuzz几次后，正好就发现了，这个回显的黑名单，禁用了if	and	
 
 # #12.[NISACTF 2022]hardsql
 
-![image-20260113153134591](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113153134591.png)
+![image-20260113153134591](/images/image-20260113153134591.png)
 
 题目描述里有一点提示，进入靶机，就是一个用户名和密码的页面。
 
@@ -912,7 +912,7 @@ print(f"最终结果: {password_found}")
 
 登入，发现：
 
-![image-20260113152807646](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113152807646.png)
+![image-20260113152807646](/images/image-20260113152807646.png)
 
 还没结束，我还以为就出了。
 
@@ -964,7 +964,7 @@ if (isset($_POST['username']) && $_POST['username'] != '' && isset($_POST['passw
 
 联系题目的Quine 注入。
 
-![image-20260113162455587](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113162455587.png)
+![image-20260113162455587](/images/image-20260113162455587.png)
 
 研究一下，就得到了最终思路，让数据库自己复制一个跟我们输入一模一样的字符串来比较。
 
@@ -1001,7 +1001,7 @@ REPLACE(
 '/**/union/**/select/**/replace(replace('"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#',0x22,0x27),0x25,'"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#')# /得到的外层结果
 ```
 
-![image-20260113152935803](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113152935803.png)
+![image-20260113152935803](/images/image-20260113152935803.png)
 
 最后拿下flag。
 
@@ -1012,6 +1012,75 @@ REPLACE(
 
 
 ---
+
+
+
+# #13.[October 2019]Twice SQL Injection
+
+![image-20260113184144258](/images/image-20260113184144258.png)
+
+![image-20260113184146911](/images/image-20260113184146911.png)
+
+![image-20260113184150020](/images/image-20260113184150020.png)
+
+三个页面，一个登入，一个注册，一个登入成功的。
+
+根据题目描述，是二次注入。
+
+稍微去看了一下。
+
+> `[【CTF】二次注入原理及实战-CSDN博客](https://blog.csdn.net/hhhhhhhhh85/article/details/121328475)`
+
+本来以为看一下，大概就有思路了，结果这一题。
+
+还是愣住了，唯一发现的是，我以什么注册，在登入页面的地方，就显示当时注册的用户名。
+
+唯一算有用的就是"，双引号注册时候，登入会产生转义字符\。
+
+简单看了一下wp。
+
+> `https://www.nssctf.cn/note/set/11237`
+
+其他的都太胡来了，直接就是后端搬运源码了。
+
+根据wp，正常就是发现，这个注册用户名会在登入时，被后端的数据库提取并执行。
+
+所以，我们就需要一次一次的以sql语句注册用户，然后登入，得到查询的结果。
+
+这个ctftrainning，就是我通过 `1' union select database()#` 这个得到的。
+
+`1' UNION SELECT group_concat(table_name) FROM information_schema.tables WHERE table_schema = 'ctftraining'#`
+
+得到：
+![image-20260113193404802](/images/image-20260113193404802.png)
+
+`1' UNION SELECT group_concat(column_name) FROM information_schema.columns WHERE table_name = 'flag' #`
+
+得到：
+
+![image-20260113193522049](/images/image-20260113193522049.png)
+
+`1' union select flag from flag#`
+
+得到：
+
+![image-20260113193643968](/images/image-20260113193643968.png)
+
+拿下flag。
+
+**NSSCTF{7cd0bf28-8dac-4038-b45a-0ea01149c09f}**
+
+小总结：这题如果硬要说，就是一个普及二次注入的题型，实际复现起来，不就是字符型注入吗。
+
+
+
+---
+
+
+
+
+
+
 
 
 
