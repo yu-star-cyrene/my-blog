@@ -38,7 +38,14 @@ export const musicPlayerConfig: MusicPlayerConfig = {
                 cover: "/assets/music/cover/登阶.jpg",
                 lrc: "/assets/music/lrc/在银河中孤独摇摆.lrc"
             }, // <-- 已补齐逗号
-			{
+            {
+                name: "丹阳子",
+                artist: "Ofo凌四",
+                url: "/assets/music/丹阳子.mp3",
+                cover: "/assets/music/cover/丹阳子.jpg",
+                lrc: "/assets/music/lrc/在银河中孤独摇摆.lrc"
+            }, // <-- 已补齐逗号
+            {
                 name: "在银河中孤独摇摆",
                 artist: "知更鸟",
                 url: "/assets/music/知更鸟、HOYO-MiX、Chevy - 在银河中孤独摇摆 (Sway to My Beat in Cosmos).flac",

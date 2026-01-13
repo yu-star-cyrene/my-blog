@@ -1,6 +1,6 @@
 ---
 title: "PS:感觉可以做一个"
-image: ''
+image: "/images/138635815_p0_master1200.jpg"
 pinned: false
 comment: true
 published: 2025-11-11

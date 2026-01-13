@@ -4,7 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2025-12-25
-description: "CTF 学习笔记与技术复盘"
+description: "sql学习"
 category: 学习
 tags: [学习]
 ---
