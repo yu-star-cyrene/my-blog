@@ -1,10 +1,10 @@
 ---
 title: "Arnold猫脸变换和zigzag"
-image: "/images/138146004_p0_master1200.jpg"
+image: '/images/138146004_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-12-11
-description: "CTF 学习笔记与技术复盘"
+description: "有趣的知识点"
 category: 知识点
 tags: [知识点]
 ---

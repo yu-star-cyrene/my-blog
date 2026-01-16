@@ -4,7 +4,7 @@ image: '/images/138311505_p0_master1200.jpg'
 pinned: true
 comment: true
 published: 2025-12-21
-description: sql学习
+description: "sql学习"
 category: 秘籍
 tags: [秘籍]
 ---

@@ -1,6 +1,6 @@
 ---
 title: "SQL大赏！！！！"
-image: "/images/138100443_p0_master1200.jpg"
+image: '/images/138100443_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-12-11
@@ -8,8 +8,6 @@ description: "sql学习"
 category: 学习
 tags: [学习]
 ---
-
-
 
 # SQL大赏！！！！
 

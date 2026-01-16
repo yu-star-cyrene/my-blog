@@ -1,6 +1,6 @@
 ---
 title: "buuctf之路"
-image: "/images/138339300_p0_master1200.jpg"
+image: '/images/138339300_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-11-11
@@ -8,8 +8,6 @@ description: "刷题"
 category: 刷题
 tags: [刷题]
 ---
-
-
 
 个人的刷题之旅，尽量的写的清晰明了一些，也是一种对知识回顾和学习的方法。
 

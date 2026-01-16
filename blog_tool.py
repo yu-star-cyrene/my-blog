@@ -15,326 +15,260 @@ PUBLIC_IMG_DIR = os.path.join('public', 'images')
 ASSETS_DIR = os.path.join('public', 'assets', 'images')
 WALLPAPER_DIR = os.path.join('public', 'assets', 'images')
 BACKUP_DIR = r"C:\Users\G1731\Blog_Backups"
+# 初始分类列表
 CATEGORIES = ["秘籍", "刷题", "学习", "知识点"]
 COPYRIGHT = "- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。"
 
-# ==================== 🕵️‍♂️ 辅助函数 ====================
-def find_profile_config():
-    if os.path.exists(PROFILE_CONFIG_PATH): return PROFILE_CONFIG_PATH
-    search_dir = os.path.join('src', 'config')
-    if os.path.exists(search_dir):
-        for root, _, files in os.walk(search_dir):
-            for f in files:
-                if f.endswith('.ts'):
-                    path = os.path.join(root, f)
-                    try:
-                        with open(path, 'r', encoding='utf-8') as file:
-                            if 'name:' in file.read(): return path
-                    except: pass
-    return None
+# ==================== 🛠️ 严格标准排版引擎 ====================
+def standardize_frontmatter(content, default_title=""):
+    """
+    强制执行 SQL类 标准排版：
+    顺序：title, image, pinned, comment, published, description, category, tags
+    引号规则：title/description双引号，image单引号
+    """
+    parts = re.split(r'---\s*\n', content, maxsplit=2)
+    if len(parts) < 3: return content
+    
+    header_str = parts[1]
+    body = parts[2].strip()
+    
+    # 提取现有数据
+    data = {}
+    for line in header_str.split('\n'):
+        if ':' in line:
+            k, v = line.split(':', 1)
+            data[k.strip()] = v.strip().strip('"\'')
+
+    # 数据补全与纠错
+    title = data.get('title', default_title)
+    image = data.get('image', '')
+    
+    # 修正置顶逻辑
+    pinned_raw = str(data.get('pinned', 'false')).lower()
+    pinned = "true" if "tru" in pinned_raw else "false"
+    
+    comment_raw = str(data.get('comment', 'true')).lower()
+    comment = "false" if comment_raw == "false" else "true"
+    
+    published = data.get('published', datetime.now().strftime('%Y-%m-%d'))
+    # description 逻辑
+    description = data.get('description', title)
+    category = data.get('category', '刷题')
+    tags = data.get('tags', f'[{category}]')
+
+    # 生成 SQL类 标准头部
+    new_header = (
+        f'---\n'
+        f'title: "{title}"\n'
+        f'image: \'{image}\'\n'
+        f'pinned: {pinned}\n'
+        f'comment: {comment}\n'
+        f'published: {published}\n'
+        f'description: "{description}"\n'
+        f'category: {category}\n'
+        f'tags: {tags}\n'
+        f'---'
+    )
+    return f"{new_header}\n\n{body}\n"
+
+# ==================== 🕵️‍♂️ 辅助工具 ====================
+def get_all_posts():
+    posts = []
+    if os.path.exists(POSTS_DIR):
+        for f in os.listdir(POSTS_DIR):
+            if f.endswith(('.md', '.mdx')):
+                posts.append({'name': f, 'path': os.path.join(POSTS_DIR, f)})
+    return posts
 
 def auto_fix_corrupted_config(silent=False):
     if not os.path.exists(CONFIG_PATH): return
-    with open(CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-    if re.search(r'themeColor:\s*\{\s*[a-zA-Z],', content):
-        if not silent: print("\n🚑 自动修复主题色配置...")
-        new_content = re.sub(r'(themeColor:\s*\{\s*)[a-zA-Z],', r'\1hue: 250,', content)
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(new_content)
-
-# ==================== 📦 备份模块 ====================
-def run_backup():
-    print(f"\n=== 📦 正在备份到 {BACKUP_DIR} ... ===")
-    if not os.path.exists(BACKUP_DIR): os.makedirs(BACKUP_DIR)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    zip_name = f"Blog_Backup_{timestamp}"
-    zip_path = os.path.join(BACKUP_DIR, zip_name)
     try:
-        temp_dir = os.path.join(BACKUP_DIR, "temp_pack")
-        if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir)
-        for item in ['src', 'public', 'astro.config.mjs', 'package.json', 'tsconfig.json']:
-            if os.path.exists(item):
-                if os.path.isdir(item): shutil.copytree(item, os.path.join(temp_dir, item))
-                else: shutil.copy2(item, temp_dir)
-        shutil.make_archive(zip_path, 'zip', temp_dir)
-        shutil.rmtree(temp_dir)
-        print(f"✅ 备份成功: {zip_name}.zip")
-    except Exception as e: print(f"❌ 备份失败: {e}")
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
+        if re.search(r'themeColor:\s*\{\s*[a-zA-Z],', content):
+            new_content = re.sub(r'(themeColor:\s*\{\s*)[a-zA-Z],', r'\1hue: 250,', content)
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(new_content)
+    except: pass
 
-# ==================== 🖼️ 图片自动搬运逻辑 ====================
-def fix_and_transport_images():
-    print("\n🔍 正在扫描文章中的本地绝对路径图片...")
-    if not os.path.exists(PUBLIC_IMG_DIR): os.makedirs(PUBLIC_IMG_DIR)
-    count = 0
-    for root, _, files in os.walk(POSTS_DIR):
-        for file in files:
-            if file.endswith(('.md', '.mdx')):
-                file_path = os.path.join(root, file)
-                modified = False
-                with open(file_path, 'r', encoding='utf-8') as f: content = f.read()
-                pattern = r'(!\[.*?\]\()([a-zA-Z]:[\\/].*?\.(?:png|jpg|jpeg|webp|gif|svg))(\))'
-                matches = re.findall(pattern, content)
-                for prefix, local_path, suffix in matches:
-                    clean_local_path = local_path.strip('"\'')
-                    if os.path.exists(clean_local_path):
-                        img_name = os.path.basename(clean_local_path)
-                        target_path = os.path.join(PUBLIC_IMG_DIR, img_name)
-                        new_web_path = f"/images/{img_name}"
-                        try:
-                            if not os.path.exists(target_path): shutil.copy2(clean_local_path, target_path)
-                            content = content.replace(local_path, new_web_path)
-                            modified = True
-                            count += 1
-                            print(f"  ✅ 已搬运并修复: {img_name}")
-                        except Exception as e: print(f"  ❌ 搬运失败 [{img_name}]: {e}")
-                if modified:
-                    with open(file_path, 'w', encoding='utf-8') as f: f.write(content)
-    if count > 0: print(f"✨ 图片修复完毕：共处理 {count} 张图片。")
+# ==================== 📌 置顶管理 ====================
+def manage_pinned_status():
+    while True:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        posts = get_all_posts()
+        print("\n=== 📌 置顶状态管理 ===\nID   | 状态   | 文章标题\n" + "-"*40)
+        for i, p in enumerate(posts):
+            with open(p['path'], 'r', encoding='utf-8') as f:
+                c = f.read()
+                is_p = "[置顶]" if "pinned: true" in c else "[普通]"
+                print(f"{i+1:<4} | {is_p:<6} | {p['name']}")
+        
+        c = input("\n👉 输入序号切换状态 (0返回): ").strip()
+        if c == '0' or not c: break
+        if c.isdigit() and 0 < int(c) <= len(posts):
+            p_path = posts[int(c)-1]['path']
+            with open(p_path, 'r', encoding='utf-8') as f: content = f.read()
+            # 状态反转
+            if "pinned: true" in content: content = content.replace("pinned: true", "pinned: false")
+            else: content = content.replace("pinned: false", "pinned: true")
+            # 重新校对格式
+            with open(p_path, 'w', encoding='utf-8') as f: f.write(standardize_frontmatter(content, posts[int(c)-1]['name']))
+            print("✅ 状态已切换。")
+            time.sleep(0.5)
 
-# ==================== 🧩 图片选择与 UI 逻辑 ====================
-def scan_images():
+# ==================== 🖼️ 图片与封面 ====================
+def pick_image_ui():
+    print("\n[📂 选择图片]")
     images = []
     if os.path.exists(PUBLIC_IMG_DIR):
         for f in os.listdir(PUBLIC_IMG_DIR):
-            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.ico', '.svg')):
-                images.append({'name': f, 'path': f'/images/{f}'})
-    if os.path.exists(ASSETS_DIR):
-        for f in os.listdir(ASSETS_DIR):
-            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.ico', '.svg')):
-                images.append({'name': f, 'path': f'/assets/images/{f}'})
-    return images
+            if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                images.append(f)
+    for i, img in enumerate(images): print(f"  {i+1}. {img}")
+    print("\nU. 📤 拖入/上传新图片 | 0. 跳过")
+    c = input("👉 指令: ").strip().upper()
+    if c == '0': return ""
+    if c == 'U':
+        src = input("👉 请拖入图片: ").strip().strip('"\'')
+        if os.path.exists(src):
+            fname = os.path.basename(src)
+            shutil.copy2(src, os.path.join(PUBLIC_IMG_DIR, fname))
+            return f"/images/{fname}"
+    elif c.isdigit() and 0 < int(c) <= len(images):
+        return f"/images/{images[int(c)-1]}"
+    return ""
 
-def pick_image_ui():
-    while True:
-        print("\n[📂 请选择一张图片]")
-        images = scan_images()
-        if not images: print("   (暂无图片，请使用上传功能)")
-        else:
-            for i, img in enumerate(images):
-                print(f"   {i+1}. {img['name']} \t({img['path']})")
-        print("\nU. 📤 上传/拖入新图片\n0. 🔙 取消")
-        choice = input("👉 指令: ").strip().upper()
-        if choice == '0': return None
-        elif choice == 'U':
-            src = input("👉 请直接拖入本地图片文件: ").strip().strip('"\'')
-            if os.path.exists(src):
-                if not os.path.exists(PUBLIC_IMG_DIR): os.makedirs(PUBLIC_IMG_DIR)
-                fname = os.path.basename(src)
-                target = os.path.join(PUBLIC_IMG_DIR, fname)
-                shutil.copy2(src, target)
-                print(f"✅ 成功搬运至: /images/{fname}")
-                return f"/images/{fname}"
-            else: print("❌ 文件不存在")
-        elif choice.isdigit():
-            idx = int(choice) - 1
-            if 0 <= idx < len(images): return images[idx]['path']
-    return None
-
-# ==================== 🎨 封面管理 (核心新增) ====================
 def set_post_cover():
-    """ 为已有文章设置封面 """
-    print("\n=== 🖼️ 设置文章封面 ===")
-    posts = []
-    for root, _, files in os.walk(POSTS_DIR):
-        for f in files:
-            if f.endswith(('.md', '.mdx')):
-                posts.append({'name': f, 'full': os.path.join(root, f)})
-    if not posts: print("❌ 未找到文章"); return
-    for i, p in enumerate(posts): print(f"  {i+1}. {p['name']}")
+    posts = get_all_posts()
+    for i, p in enumerate(posts): print(f"{i+1}. {p['name']}")
+    c = input("\n👉 选择文章序号: ")
+    if c.isdigit() and 0 < int(c) <= len(posts):
+        img = pick_image_ui()
+        if img:
+            p_path = posts[int(c)-1]['path']
+            with open(p_path, 'r', encoding='utf-8') as f: content = f.read()
+            if 'image:' in content: content = re.sub(r'image:.*', f"image: '{img}'", content)
+            else: content = content.replace('---', f'---\nimage: \'{img}\'', 1)
+            with open(p_path, 'w', encoding='utf-8') as f: f.write(standardize_frontmatter(content, posts[int(c)-1]['name']))
+            print("✅ 封面已更新并自动对齐排版。")
+
+# ==================== 📝 文章管理逻辑 (交互式新建) ====================
+def process_posts(mode='format'):
+    if not os.path.exists(POSTS_DIR): os.makedirs(POSTS_DIR)
     
-    choice = input("\n👉 请选择文章序号 (0取消): ").strip()
-    if not choice or choice == '0': return
-    try:
-        post_path = posts[int(choice)-1]['full']
-        img_path = pick_image_ui() # 这里会处理图片搬运
-        if not img_path: return
+    if mode == 'new':
+        # 1. 标题
+        t = input("\n👉 请输入文章标题: ").strip()
+        if not t: return
         
-        with open(post_path, 'r', encoding='utf-8') as f: content = f.read()
-        # 智能替换或插入 image 字段
-        if re.search(r'^image\s*:', content, re.MULTILINE):
-            content = re.sub(r'(image:\s*).*', f'\\1"{img_path}"', content)
+        # 2. 描述 (Description)
+        desc = input(f"👉 请输入描述 (默认为 {t}): ").strip() or t
+        
+        # 3. 分类 (Category)
+        print("\n--- 选择分类 ---")
+        for i, cat in enumerate(CATEGORIES): print(f"  {i+1}. {cat}")
+        print("  0. ➕ 新建分类")
+        cat_c = input("👉 请选择序号: ").strip()
+        if cat_c == '0':
+            category = input("👉 请输入新分类名称: ").strip() or "刷题"
+            if category not in CATEGORIES: CATEGORIES.append(category)
         else:
-            content = re.sub(r'(title:.*)', f'\\1\nimage: "{img_path}"\npinned: true\ncomment: true', content)
-            
-        with open(post_path, 'w', encoding='utf-8') as f: f.write(content)
-        print(f"✅ 封面已更新: {img_path}")
-        time.sleep(1)
-    except: print("❌ 操作失败")
+            category = CATEGORIES[int(cat_c)-1] if cat_c.isdigit() and 0 < int(cat_c) <= len(CATEGORIES) else "刷题"
 
-# ==================== 🛠️ 其它设置逻辑 ====================
-def set_site_logo(path):
-    if not os.path.exists(CONFIG_PATH): return
-    with open(CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-    new_block = f'logo: {{\n\t\t\ttype: "image",\n\t\t\tvalue: "{path}",\n\t\t\talt: "Logo",\n\t\t}},'
-    content = re.sub(r'logo:\s*\{[\s\S]*?\},', new_block, content)
-    with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(content)
-    print(f"✅ Logo 已更新: {path}")
+        # 4. 置顶
+        pinned = "true" if input("👉 是否置顶? (y/n): ").lower() == 'y' else "false"
+        
+        # 5. 封面
+        img = pick_image_ui() if input("👉 是否设置封面? (y/n): ").lower() == 'y' else ""
 
-def set_profile_avatar(path):
-    target_file = find_profile_config() or PROFILE_CONFIG_PATH
-    if not os.path.exists(target_file): return
-    with open(target_file, 'r', encoding='utf-8') as f: content = f.read()
-    new_content = re.sub(r'(avatar:\s*["\']).*?(["\'])', f'\\1{path}\\2', content)
-    with open(target_file, 'w', encoding='utf-8') as f: f.write(new_content)
-    print(f"✅ 头像已更新: {path}")
+        # 6. 生成并对齐
+        p = os.path.join(POSTS_DIR, f"{t}.md")
+        template = f"""---
+title: "{t}"
+image: '{img}'
+pinned: {pinned}
+comment: true
+published: {datetime.now().strftime('%Y-%m-%d')}
+description: "{desc}"
+category: {category}
+tags: [{category}]
+---
 
-def set_favicon(path):
-    if not os.path.exists(CONFIG_PATH): return
-    with open(CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-    pattern = r'(favicon:[\s\S]*?src:\s*["\']).*?(["\'])'
-    if re.search(pattern, content):
-        content = re.sub(pattern, f'\\1{path}\\2', content)
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(content)
-        print(f"✅ Favicon 已更新: {path}")
+内容...
 
-def manage_logo_center():
-    while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print("\n=== 🧩 Logo 管理中心 ===\n1. 修改【站点 Logo】\n2. 修改【简介 Logo】\n3. 修改【网页图标】\n0. 返回")
-        op = input("👉 选择: ")
-        if op == '0': break
-        path = pick_image_ui()
-        if path:
-            if op == '1': set_site_logo(path)
-            elif op == '2': set_profile_avatar(path)
-            elif op == '3': set_favicon(path)
-            run_if_user_wants()
+---
 
-def manage_announcement():
-    if not os.path.exists(CONFIG_PATH): return
-    while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-        content_match = re.search(r'notice:[\s\S]*?content:\s*["\'](.*?)["\']', content)
-        current_msg = content_match.group(1) if content_match else "(空)"
-        print(f"\n=== 📢 公告管理 ===\n📜 当前: {current_msg}\n1. 修改内容\n2. 开启\n3. 关闭\n0. 返回")
-        op = input("👉 选择: ")
-        if op == '0': break
-        if op == '1':
-            msg = input("新公告: ").strip()
-            content = re.sub(r'(notice:[\s\S]*?content:\s*)["\'].*?["\']', f'\\1"{msg}"', content)
-        elif op in ['2','3']:
-            val = "true" if op == '2' else "false"
-            content = re.sub(r'(notice:[\s\S]*?enable:\s*)(?:true|false)', rf'\1{val}', content)
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(content)
-        run_if_user_wants()
+{COPYRIGHT}"""
+        with open(p, 'w', encoding='utf-8') as f: f.write(template)
+        print(f"✅ 文章《{t}》已按标准格式创建成功！")
+        return
 
-def manage_wallpaper():
-    print("\n=== 🌅 壁纸更换 ===\n1. 电脑端\n2. 手机端\n0. 返回")
-    c = input("👉 选择: ")
-    if c == '0': return
-    target = 'desktop' if c == '1' else 'mobile'
-    path = pick_image_ui()
-    if path:
-        with open(WALLPAPER_CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-        content = re.sub(r'('+target+r':\s*["\']).*?(["\'])', f'\\1{path}\\2', content)
-        with open(WALLPAPER_CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(content)
-        print("✅ 壁纸更新成功")
+    # 全站格式化维护
+    print("🧹 正在全站深度格式化...")
+    for p in get_all_posts():
+        with open(p['path'], 'r', encoding='utf-8') as f: content = f.read()
+        new = standardize_frontmatter(content, p['name'])
+        if COPYRIGHT not in new: new = new.rstrip() + f"\n\n---\n\n{COPYRIGHT}\n"
+        with open(p['path'], 'w', encoding='utf-8') as f: f.write(new)
+    print("✅ 全站已成功校对为 SQL类 排版标准。")
 
-def update_ad_image():
-    path = pick_image_ui()
-    if path:
-        with open(AD_CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-        content = re.sub(r'(adConfig2[\s\S]*?src:\s*["\']).*?(["\'])', f'\\1{path}\\2', content)
-        with open(AD_CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(content)
-        print("✅ 夸夸图更新成功")
-
-def disable_banner_credit():
-    if not os.path.exists(WALLPAPER_CONFIG_PATH): return
-    with open(WALLPAPER_CONFIG_PATH, 'r', encoding='utf-8') as f: content = f.read()
-    content = re.sub(r'(credit:[\s\S]*?desktop:\s*)true', r'\1false', content)
-    content = re.sub(r'(credit:[\s\S]*?mobile:\s*)true', r'\1false', content)
-    with open(WALLPAPER_CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(content)
-    print("✅ 已隐藏来源")
-
-def run_if_user_wants():
-    if input("👉 是否立即预览? (y/n): ").lower() == 'y': run_dev()
-
+# ==================== ⚙️ 设置中心功能补完 ====================
 def update_site_config():
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("\n=== ⚙️ 博客设置中心 ===\n1. 修改标题\n2. 公告管理\n3. Logo/图标管理\n4. 修改主题色\n5. 修改横幅文字\n6. 更换夸夸图\n7. 隐藏横幅来源\n0. 返回")
+        print("\n=== ⚙️ 博客设置中心 ===\n1. 修改主标题\n2. 修改公告内容\n3. 修改主题色(Hue)\n4. 修改横幅文字\n0. 返回")
         op = input("👉 选择: ")
         if op == '0': break
-        elif op == '1':
+        
+        if op == '1':
             n = input("新主标题: ").strip()
-            if n:
-                with open(CONFIG_PATH, 'r', encoding='utf-8') as f: c = f.read()
-                c = re.sub(r'(siteConfig[\s\S]*?title:\s*)["\'].*?["\']', f'\\1"{n}"', c, count=1)
-                with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(c)
-        elif op == '2': manage_announcement()
-        elif op == '3': manage_logo_center()
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f: c = f.read()
+            c = re.sub(r'(siteConfig[\s\S]*?title:\s*)["\'].*?["\']', f'\\1"{n}"', c, count=1)
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(c)
+        elif op == '2':
+            msg = input("新公告内容: ").strip()
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f: c = f.read()
+            c = re.sub(r'(notice:[\s\S]*?content:\s*)["\'].*?["\']', f'\\1"{msg}"', c)
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(c)
+        elif op == '3':
+            h = input("新Hue值 (0-360): ").strip()
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f: c = f.read()
+            c = re.sub(r'hue:\s*\d+', f'hue: {h}', c)
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(c)
         elif op == '4':
-            v = input("色调 Hue (0-360): ").strip()
-            if v.isdigit():
-                with open(CONFIG_PATH, 'r', encoding='utf-8') as f: c = f.read()
-                c = re.sub(r'hue:\s*\d+', f'hue: {v}', c, count=1)
-                with open(CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(c)
-        elif op == '5':
-            t = input("横幅文字: ").strip()
+            t = input("横幅新文字: ").strip()
             with open(WALLPAPER_CONFIG_PATH, 'r', encoding='utf-8') as f: c = f.read()
             c = re.sub(r'(homeText:[\s\S]*?title:\s*)["\'].*?["\']', f'\\1"{t}"', c)
             with open(WALLPAPER_CONFIG_PATH, 'w', encoding='utf-8') as f: f.write(c)
-        elif op == '6': update_ad_image()
-        elif op == '7': disable_banner_credit()
-        run_if_user_wants()
+        print("✅ 设置已保存。"); time.sleep(1)
 
-# ==================== 文章管理 ====================
-def process_posts(mode='format'):
-    if not os.path.exists(POSTS_DIR): os.makedirs(POSTS_DIR)
-    if mode == 'new':
-        t = input("文章标题: ").strip()
-        if not t: return
-        img_field = ""
-        if input("👉 是否设置封面? (y/n): ").lower() == 'y':
-            path = pick_image_ui()
-            if path: img_field = f'image: "{path}"\n'
-        
-        p = os.path.join(POSTS_DIR, f"{t}.md")
-        with open(p, 'w', encoding='utf-8') as f:
-            f.write(f"---\ntitle: \"{t}\"\n{img_field}category: 刷题\ntags: [刷题]\npublished: {datetime.now().strftime('%Y-%m-%d')}\npinned: false\ncomment: true\n---\n\n内容...\n\n---\n\n{COPYRIGHT}\n")
-        print(f"✅ 已创建: {p}"); return
-    
-    fix_and_transport_images()
-    for r, _, fs in os.walk(POSTS_DIR):
-        for f in fs:
-            if f.endswith('.md'):
-                p = os.path.join(r, f)
-                with open(p, 'r', encoding='utf-8') as file: c = file.read()
-                if COPYRIGHT not in c:
-                    with open(p, 'a', encoding='utf-8') as file: file.write(f"\n\n---\n\n{COPYRIGHT}\n")
-    print("✅ 格式化完成")
-
+# ==================== 🚀 运行模块 ====================
 def run_dev():
     os.system("start http://localhost:4321")
     os.system("start cmd /k pnpm dev")
 
 def run_deploy():
-    run_backup()
     os.system("git add .")
-    os.system('git commit -m "update blog"')
+    os.system('git commit -m "update content"')
     os.system("git push origin main")
-    input("Done. Enter to exit.")
+    print("✅ 发布指令已发出。")
 
-# ==================== 入口 ====================
 if __name__ == "__main__":
     auto_fix_corrupted_config(silent=True)
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
-        print("\n" + "="*45 + "\n      🔥 余林阳 全能博客助手 \n" + "="*45)
+        print("\n" + "="*45 + "\n      🔥 余林阳 全能博客助手 v12.7\n" + "="*45)
         print("  1. 📝 新建文章       5. 🗑️ 删除文章")
-        print("  2. 🧹 格式化维护     6. 🚀 本地预览")
-        print("  3. ⚙️  博客设置       7. ☁️ 发布博客")
+        print("  2. 🧹 全站格式校对   6. 🚀 本地预览")
+        print("  3. ⚙️  设置中心       7. ☁️ 发布博客")
         print("  4. 🌅 换壁纸中心     8. 📦 手动备份")
-        print("  9. 🖼️ 设置文章封面")
+        print("  9. 🖼️ 设置文章封面   10. 📌 置顶管理")
         print("-" * 45 + "\n  Q. 退出\n" + "="*45)
+        
         c = input("👉 选择: ").lower()
-        if c=='q': break
-        elif c=='1': process_posts('new'); input("回车继续...")
-        elif c=='2': process_posts('format'); input("回车继续...")
-        elif c=='3': update_site_config()
-        elif c=='4': manage_wallpaper(); input("回车继续...")
-        elif c=='6': run_dev()
-        elif c=='7': run_deploy()
-        elif c=='8': run_backup(); input("回车继续...")
-        elif c=='9': set_post_cover(); input("回车继续...")
+        if c == 'q': break
+        elif c == '1': process_posts('new'); input("回车继续...")
+        elif c == '2': process_posts('format'); input("回车继续...")
+        elif c == '3': update_site_config()
+        elif c == '6': run_dev()
+        elif c == '7': run_deploy(); input("回车继续...")
+        elif c == '9': set_post_cover(); input("回车继续...")
+        elif c == '10': manage_pinned_status()
