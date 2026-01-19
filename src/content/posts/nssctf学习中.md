@@ -1164,7 +1164,43 @@ else{
 
 
 
-# #15。[NSSRound#1Basic]sql_by_sql
+# #15
+
+```
+<?php
+show_source(__FILE__);
+include("class.php");
+$conn = new mysqli();
+
+if(isset($_POST['config']) && is_array($_POST['config'])){
+    foreach($_POST['config'] as $key => $val){
+        $value = is_numeric($var)?(int)$val:$val;
+        $conn->set_opt($key, $value);
+    }
+}
+
+if(isset($_POST['mysql']) && is_array($_POST['mysql'])){
+    $my = $_POST['mysql'];
+    if($conn->real_connect($my['host'], $my['user'], $my['pass'], $my['dbname'], $my['port'])){
+        echo "connect success";
+        $conn->query("show databases;");
+    }
+    else{
+        echo "connect fail";
+    }
+    
+}
+else{
+    include("function.php");
+}
+
+$conn->close();
+?> connect success
+```
+
+
+
+
 
 
 

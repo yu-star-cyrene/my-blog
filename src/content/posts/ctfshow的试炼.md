@@ -11,7 +11,7 @@ tags: [刷题]
 
 ctfshow的做题之路，这边我会把我感觉对自己很有帮助的题目以及wp写出来。
 
-# #1.签到·好玩的PHP
+# #1.DSBCTF单身杯：签到·好玩的PHP
 
 这题目特别简洁但又难做，上代码
 
@@ -283,7 +283,7 @@ $dsb字符长度不超过3，$ctf同理。
 
    
 
-   # #4.这个不好听
+   # #4.DSBCTF单身杯：这个不好听
 
    这一题我是没做出来的，所以，这一篇的文章并非wp类型，算是记录我在认真学习官方wp的日记吧。
 
@@ -686,7 +686,7 @@ $dsb字符长度不超过3，$ctf同理。
 
    
 
-# #5.迷雾重重
+# #5.DSBCTF单身杯：迷雾重重
 
 ![alt text](/images/QQ20251127-165313.png)
 
@@ -920,6 +920,9 @@ use function request;
 
 
 
+
+
+
 ---
 
 
@@ -1133,7 +1136,7 @@ ctfshow{6a9025fc-8cb0-4de4-90d6-d7275ac512b0}
 
 
 
-# #6.ez_inject
+# #6.DSBCTF单身杯：ez_inject
 
 这一题比上面一题简单，我大概花了20分钟的样子。
 
@@ -1193,17 +1196,85 @@ isinstance(     ,     ),判断类型。
 
 setattr(object, attribute, value),设置属性，赋值。
 
----
+
 
 ---
 
----
+
+
+# #7.ciscn国赛：Unzip
+
+![image-20260119164315499](/images/image-20260119164315499.png)
+
+```
+                                                                                                                   <code><span style="color: #000000">
+<span style="color: #0000BB">&lt;?php<br />error_reporting</span><span style="color: #007700">(</span><span style="color: #0000BB">0</span><span style="color: #007700">);<br /></span><span style="color: #0000BB">highlight_file</span><span style="color: #007700">(</span><span style="color: #0000BB">__FILE__</span><span style="color: #007700">);<br /><br /></span><span style="color: #0000BB">$finfo&nbsp;</span><span style="color: #007700">=&nbsp;</span><span style="color: #0000BB">finfo_open</span><span style="color: #007700">(</span><span style="color: #0000BB">FILEINFO_MIME_TYPE</span><span style="color: #007700">);<br />if&nbsp;(</span><span style="color: #0000BB">finfo_file</span><span style="color: #007700">(</span><span style="color: #0000BB">$finfo</span><span style="color: #007700">,&nbsp;</span><span style="color: #0000BB">$_FILES</span><span style="color: #007700">[</span><span style="color: #DD0000">"file"</span><span style="color: #007700">][</span><span style="color: #DD0000">"tmp_name"</span><span style="color: #007700">])&nbsp;===&nbsp;</span><span style="color: #DD0000">'application/zip'</span><span style="color: #007700">){<br />&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color: #0000BB">exec</span><span style="color: #007700">(</span><span style="color: #DD0000">'cd&nbsp;/tmp&nbsp;&amp;&amp;&nbsp;unzip&nbsp;-o&nbsp;'&nbsp;</span><span style="color: #007700">.&nbsp;</span><span style="color: #0000BB">$_FILES</span><span style="color: #007700">[</span><span style="color: #DD0000">"file"</span><span style="color: #007700">][</span><span style="color: #DD0000">"tmp_name"</span><span style="color: #007700">]);<br />};<br /><br /></span><span style="color: #FF8000">//only&nbsp;this!</span>
+</span>
+</code>
+```
+
+```
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+
+$finfo = finfo_open(FILEINFO_MIME_TYPE);
+if (finfo_file($finfo, $_FILES["file"]["tmp_name"]) === 'application/zip'){
+    exec('cd /tmp && unzip -o ' . $_FILES["file"]["tmp_name"]);
+};
+
+//only this!
+```
+
+先上信息吧，一个文件上传页面，我看到的时候，直接联想文件码，所以就直接去扫一下后端，发现个upload.php，这边就是限制上传文件要是安装包，并自动解压。
+
+一开始我感觉像isctf里的软链接攻击的那一题，直接复刻一下，结果不行。
+
+看来不是这样的做法。
+
+稍微思考一下， 可以通过木马来操作。
+
+思路如下：
+
+先创建一个指向性的软链接压缩包，将服务器的当前目录改为**/var/www/html**，这个目录是网站的根目录。
+
+然后再创建一个压缩包，用来传输一句话木马 **`'<?php @eval($_POST["cmd"]); phpinfo(); ?>'`** 给这个根目录。
+
+然后链接木马，进行搜索。
+
+很快就拿到了flag。
+
+![image-20260119181630126](/images/image-20260119181630126.png)
+
+**ctfshow{59fcb89e-3b0b-4781-8426-e576af7ce1ad}**
+
+
 
 ---
 
----
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
+
+- *版权声明**：本文由 **余林阳** 创作，转载请注明出处。
 
 ---
 
