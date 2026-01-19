@@ -8,7 +8,7 @@ export const profileConfig: ProfileConfig = {
 	name: "余林阳",
 
 	// 个人签名
-	bio: "被c语言拷打的fw.",
+	bio: "咕咕嘎嘎",
 
 
 	links: [

