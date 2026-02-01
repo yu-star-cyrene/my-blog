@@ -85,7 +85,7 @@ def get_all_posts():
                 posts.append({'name': f, 'path': os.path.join(POSTS_DIR, f)})
     return posts
 
-# ==================== 📦 备份模块 (修复版) ====================
+# ==================== 📦 备份模块 ====================
 def run_backup():
     print(f"\n=== 📦 正在备份到 {BACKUP_DIR} ... ===")
     if not os.path.exists(BACKUP_DIR): 
@@ -97,12 +97,10 @@ def run_backup():
     zip_path = os.path.join(BACKUP_DIR, zip_name)
     
     try:
-        # 创建临时打包目录，避开 node_modules
         temp_dir = os.path.join(BACKUP_DIR, "temp_pack")
         if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
         os.makedirs(temp_dir)
         
-        # 仅备份核心文件和文件夹
         core_items = ['src', 'public', 'astro.config.mjs', 'package.json', 'tsconfig.json']
         for item in core_items:
             src_path = os.path.join(BASE_DIR, item)
@@ -120,7 +118,7 @@ def manage_pinned_status():
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         posts = get_all_posts()
-        print("\n=== 📌 置顶状态管理 ===\nID   | 状态   | 文章标题\n" + "-"*40)
+        print("\n=== 📌 置顶状态管理 ===\nID   | 状态    | 文章标题\n" + "-"*40)
         for i, p in enumerate(posts):
             with open(p['path'], 'r', encoding='utf-8') as f:
                 c = f.read()
@@ -182,20 +180,39 @@ def process_posts(mode='format'):
             category = input("👉 新分类名: ").strip() or "刷题"
             if category not in CATEGORIES: CATEGORIES.append(category)
         else: category = CATEGORIES[int(cat_c)-1] if cat_c.isdigit() and 0 < int(cat_c) <= len(CATEGORIES) else "刷题"
+        
         pinned = "true" if input("👉 是否置顶? (y/n): ").lower() == 'y' else "false"
-        img = pick_image_ui() if input("👉 是否封面? (y/n): ").lower() == 'y' else ""
+        
+        # --- 修改点：新建文章时设置封面并获取路径 ---
+        img = ""
+        if input("👉 是否设置封面? (y/n): ").lower() == 'y':
+            img = pick_image_ui() # 获取类似 /images/xxx.jpg 的路径
+
         p = os.path.join(POSTS_DIR, f"{t}.md")
-        template = f'---\ntitle: "{t}"\nimage: \'{img}\'\npinned: {pinned}\ncomment: true\npublished: {datetime.now().strftime("%Y-%m-%d")}\ndescription: "{desc}"\ncategory: {category}\ntags: [{category}]\n---\n\n内容...\n\n---\n\n{COPYRIGHT}\n'
-        with open(p, 'w', encoding='utf-8') as f: f.write(standardize_frontmatter(template, t))
-        print(f"✅ 《{t}》创建成功！")
+        template = (
+            f'---\n'
+            f'title: "{t}"\n'
+            f'image: \'{img}\'\n'
+            f'pinned: {pinned}\n'
+            f'comment: true\n'
+            f'published: {datetime.now().strftime("%Y-%m-%d")}\n'
+            f'description: "{desc}"\n'
+            f'category: {category}\n'
+            f'tags: [{category}]\n'
+            f'---\n\n'
+            f'内容...\n\n'
+            f'---\n\n'
+            f'{COPYRIGHT}\n'
+        )
+        with open(p, 'w', encoding='utf-8') as f: 
+            f.write(standardize_frontmatter(template, t))
+        print(f"✅ 《{t}》创建成功！封面已同步更新。")
         return
     
-    # 2. 全站校对时同时进行图片搬运
+    # 2. 全站校对
     print("\n🔍 扫描图片并校对排版...")
-    # (图片搬运代码集成)
     for p in get_all_posts():
         with open(p['path'], 'r', encoding='utf-8') as f: content = f.read()
-        # 自动搬运正文中的本地路径图片
         local_imgs = re.findall(r'(!\[.*?\]\()([a-zA-Z]:[\\/].*?\.(?:png|jpg|jpeg|webp|gif|svg))(\))', content)
         for _, lp, _ in local_imgs:
             clp = lp.strip('"\'')
@@ -239,7 +256,7 @@ def run_dev():
     os.system("start cmd /k pnpm dev")
 
 def run_deploy():
-    run_backup() # 发布前强制备份一次
+    run_backup()
     os.system("git add .")
     os.system('git commit -m "update blog content"')
     os.system("git push origin main")
@@ -251,10 +268,10 @@ if __name__ == "__main__":
         os.system('cls' if os.name == 'nt' else 'clear')
         print("\n" + "="*45 + "\n      🔥 余林阳 全能博客助手 v12.8\n" + "="*45)
         print("  1. 📝 新建文章       5. 🗑️ 删除文章")
-        print("  2. 🧹 全站格式校对   6. 🚀 本地预览")
+        print("  2. 🧹 全站格式校对    6. 🚀 本地预览")
         print("  3. ⚙️  设置中心       7. ☁️ 发布博客")
-        print("  4. 🌅 换壁纸中心     8. 📦 手动备份")
-        print("  9. 🖼️ 设置文章封面   10. 📌 置顶管理")
+        print("  4. 🌅 换壁纸中心      8. 📦 手动备份")
+        print("  9. 🖼️ 设置文章封面    10. 📌 置顶管理")
         print("-" * 45 + "\n  Q. 退出\n" + "="*45)
         c = input("👉 选择: ").lower()
         if c == 'q': break

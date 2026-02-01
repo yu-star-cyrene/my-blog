@@ -1268,7 +1268,7 @@ zip -r step2.zip link_hacker
 
 # #8.ciscn国赛：sanic
 
-![image-20260120154242631](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260120154242631.png)
+![image-20260120154242631](/images/image-20260120154242631.png)
 
 ```
 from sanic import Sanic
