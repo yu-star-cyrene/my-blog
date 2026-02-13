@@ -4,7 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2026-02-12
-description: "SHCTF WP 我想玩终末地 26名.md"
+description: "SHCTF WP"
 category: 刷题
 tags: [刷题]
 ---
