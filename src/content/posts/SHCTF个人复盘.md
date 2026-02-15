@@ -64,9 +64,121 @@ http_response_code(404);
 
 cmd由于设置是 `system($_POST['cmd']);` ，相当于是直接在linux系统下执行，类似ls，cat，whoami的直接命令执行；而code就不一样了，它给的是 `eval($_POST['code']);` ，需要的是我们使用php语句的命令，比如phpinfo();`, `echo "hello";`, `include('config.php') ，两者存在差别，但起到的效果大差不差。
 
+通过举出当前目录的文件，读取题目配置文件，发现了漏洞点：
+
+```
+$stmt = $pdo->prepare("CALL buy_item(?, ?)");
+$stmt->execute([$target_id, $my_money]); 
+```
+
+这里可以用抓包直接修改，把 `$my_money` 改成 `999999` ，那直接就拥有了能拿到flag的钱，如果题目修改一下，这边改成后端从 `$target_id` 中读取money的方式，就能把这个漏洞补上了。
+
+所以仔细思考起来，这题的考点就涉及目录猜测，代码审计，抓包。
+
+不难。
 
 
 
+---
+
+
+
+# Challenge Info - [阶段1] Ezphp
+
+这题是很直接的php反序列化的题目。
+
+仅仅存在一个__call过滤system的函数，稍微绕一点，但只要通过readfile就可以绕过。
+
+只要找到一条合适的pop链，一路触发就可以完成题目。
+
+```
+<?php
+highlight_file(__FILE__);
+error_reporting(0);
+
+class Sun
+{
+    public $sun;
+
+    public function __destruct()
+    {
+        die("Maybe you should fly to the " . $this->sun);
+    }
+}
+
+class Solar
+{
+    private $Sun;
+    public $Mercury;
+    public $Venus;
+    public $Earth;
+    public $Mars;
+    public $Jupiter;
+    public $Saturn;
+    public $Uranus;
+    public $Neptune;
+
+    public function __set($name, $key)
+    {
+        $this->Mars = $key;
+        $Dyson = $this->Mercury;
+        $Sphere = $this->Venus;
+        $Dyson->$Sphere($this->Mars);
+    }
+
+    public function __call($func, $args)
+    {
+        if (!preg_match("/exec|popen|popens|system|shell_exec|assert|eval|print|printf|array_keys|sleep|pack|array_pop|array_filter|highlight_file|show_source|file_put_contents|call_user_func|passthru|curl_exec/i", $args[0])) {
+            $exploar = new $func($args[0]);
+            $road = $this->Jupiter;
+            $exploar->$road($this->Saturn);
+        } else {
+            die("Black hole");
+        }
+    }
+}
+
+class Moon
+{
+    public $nearside;
+    public $farside;
+
+    public function __tostring()
+    {
+        $starship = $this->nearside;
+        $starship();
+        return '';
+    }
+}
+
+class Earth
+{
+    public $onearth;
+    public $inearth;
+    public $outofearth;
+
+    public function __invoke()
+    {
+        $oe = $this->onearth;
+        $ie = $this->inearth;
+        $ote = $this->outofearth;
+        $oe->$ie = $ote;
+    }
+}
+
+if (isset($_POST['travel'])) {
+    $a = unserialize($_POST['travel']);
+    throw new Exception("How to Travel?");
+}
+```
+
+**`Sun` 开始 **：它需要一个能被当做字符串的对象 $\rightarrow$ 找到 `Moon` 类的 `__tostring`。
+
+**在 `Moon` 中**：它的 `__tostring` 执行了 `$starship()`（把属性当函数调） $\rightarrow$ 寻找有 `__invoke` 的类 $\rightarrow$ 找到 `Earth` 类。
+
+**在 `Earth` 中**：它的 `__invoke` 执行了 `$oe->$ie = $ote;`（赋值操作） $\rightarrow$ 如果 `$oe` 是个对象，且 `$ie` 是它的私有属性，就会触发 `__set` $\rightarrow$ 找到 `Solar` 类的 `__set`。
+
+**在 `Solar` 中**：它的 `__set` 执行了 `$Dyson->$Sphere(...)`（调用方法） $\rightarrow$ 如果方法不存在，触发 `__call`。
 
 
 
