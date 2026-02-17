@@ -5,7 +5,7 @@ export const announcementConfig: AnnouncementConfig = {
 	title: "公告",
 
 	// 公告内容
-	content: "一起组一辈子乐队吧！！！",
+	content: "一个专注于学习的网络小白",
 
 	// 是否允许用户关闭公告
 	closable: true,
