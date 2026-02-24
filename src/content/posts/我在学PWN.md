@@ -271,7 +271,7 @@ mov将第二次push完后的esp即栈顶指针的的数值复制给了ebx即基�
     xor edx, edx        ; 
 ```
 
-![image-20260224143740748](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224143740748.png)
+![image-20260224143740748](/images/image-20260224143740748.png)
 
 寄存器与自己进行异或，结果为0，是一种非常方便的写法，直接写 `mov ecx/edx，0` 会导致程序产生许多0，然后出一些奇怪的错误，这边就是想要把两个寄存器的数值令为0。
 
@@ -281,7 +281,7 @@ mov eax, 0xb
 
 将eax令为0，虽然eax是累计器，但其也存放系统符号。
 
-![image-20260224144720832](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224144720832.png)
+![image-20260224144720832](/images/image-20260224144720832.png)
 
 而execve在32位中的位置就是11即0xb。
 
@@ -289,17 +289,17 @@ mov eax, 0xb
 int 0x80
 ```
 
-![image-20260224144342624](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224144342624.png)
+![image-20260224144342624](/images/image-20260224144342624.png)
 
 所以最后相当于是让linux系统内核取帮我们执行execve("/bin//sh"，0，0)
 
-![image-20260224145034813](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224145034813.png)
+![image-20260224145034813](/images/image-20260224145034813.png)
 
 即得到一个简单的shell。
 
 64位的系统其实也就是改一下寄存器名字，syscall内的位置，操作一样。
 
-![image-20260224145253384](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224145253384.png)
+![image-20260224145253384](/images/image-20260224145253384.png)
 
 ##### 快速生成：
 
