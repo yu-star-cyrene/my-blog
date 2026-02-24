@@ -50,15 +50,7 @@ ld：链接器	-m elf_i386：指定生成的程序格式为32位	-o i386：生�
 
 
 
-
-
-
-
-
-
 ---
-
-
 
 
 
@@ -221,42 +213,200 @@ CF，ZF，CX......详细说明：
 
 
 
-![image-20260223003014582](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260223003014582.png)
+![image-20260223003014582](/images/image-20260223003014582.png)
 
 代码起到的作用也就是调用system，但这样的代码生成的shellcode太大了，不符合题目的要求，而且实际题目中也不知道系统函数在哪，所以这个方法不行。
 
 
 
-#### 解决方法：
 
-1.触发中断
 
 ##### 汇编代码：
 
 ```
-global _start           ; 声明程序的全局入口点
-
-; 程序入口处：
+global _start
 _start:				
 
-    push 0x68732f2f     ; 压栈 "//sh" (对应十六进制 68 73 2f 2f)
-    push 0x6e69622f     ; 压栈 "/bin" (对应十六进制 6e 69 62 2f)
+    push 0x68732f2f     ; 
+    push 0x6e69622f     ; 
 
-    mov ebx, esp        ; 将栈顶地址（指向 "/bin//sh"）送入 EBX
-                        ; EBX 存放 execve 的第 1 个参数：文件路径指针
+    mov ebx, esp        ;    
     
-    xor ecx, ecx        ; 将 ECX 清零 (等同于 ecx = 0)
-                        ; ECX 存放第 2 个参数：argv 命令行参数指针，设为 NULL
-    
-    xor edx, edx        ; 将 EDX 清零 (等同于 edx = 0)
-                        ; EDX 存放第 3 个参数：envp 环境变量指针，设为 NULL
+    xor ecx, ecx        ; 
+    xor edx, edx        ; 
 
-    ; --- 第三步：设置系统调用号并触发 ---
-    mov eax, 0xb        ; 设置系统调用号为 11 (0xb)，对应 execve 函数
-                        ; EAX 负责传递返回值或系统调用号
+    mov eax, 0xb        ; 32位的情况
     
-    int 0x80            ; 触发 80h 软中断，陷入内核执行
+    int 0x80            ; 
 ```
+
+这边是从视频内截取出来的简单shellcode，为的是在研究的同时理解汇编的写法。
+
+前两个 global _start 和 _start 就是简单的声明程序入口和入口开始处。
+
+紧接着是两个push，根据上面常用汇编指令的内容，我们可以理解我们将两个0x的16进制数据从下面往上塞，这是由于程序是从高地址向矮地址生长的缘故，即到时候在程序里面的排序是这样的：
+
+```
+0x68732f2f ;//sh
+0x6e69622f ;/bin
+;先push的内容在上方，地址高；而后push的内容在下方，地址低。
+```
+
+16进制转化：/` = `0x2f` | `b` = `0x62` | `i` = `0x69` | `n` = `0x6e` | `s` = `0x73` | `h` = `0x68
+
+实际上根据16进制，我们push的内容与我们想要的内容实际是相反的，这里涉及内存的一个知识点叫大端序与小端序。
+
+```
+    mov ebx, esp        ;     
+```
+
+由于两次push后，我们的栈顶指针向下了8个字节，假设一开始栈顶指针为0xFFFF9，第一次push后栈顶指针为0xFFFF5，第二次push后栈顶指针为0xFFFF1。
+
+mov将第二次push完后的esp即栈顶指针的的数值复制给了ebx即基址寄存器。
+
+`ebx = esp-> 0x2f即/bin//sh的第一个斜杠 —> 0xFFFF1`
+
+```
+    xor ecx, ecx        ; 
+    xor edx, edx        ; 
+```
+
+![image-20260224143740748](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224143740748.png)
+
+寄存器与自己进行异或，结果为0，是一种非常方便的写法，直接写 `mov ecx/edx，0` 会导致程序产生许多0，然后出一些奇怪的错误，这边就是想要把两个寄存器的数值令为0。
+
+```
+mov eax, 0xb
+```
+
+将eax令为0，虽然eax是累计器，但其也存放系统符号。
+
+![image-20260224144720832](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224144720832.png)
+
+而execve在32位中的位置就是11即0xb。
+
+```
+int 0x80
+```
+
+![image-20260224144342624](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224144342624.png)
+
+所以最后相当于是让linux系统内核取帮我们执行execve("/bin//sh"，0，0)
+
+![image-20260224145034813](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224145034813.png)
+
+即得到一个简单的shell。
+
+64位的系统其实也就是改一下寄存器名字，syscall内的位置，操作一样。
+
+![image-20260224145253384](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260224145253384.png)
+
+##### 快速生成：
+
+```
+#32位
+from pwn import *
+context(log_level = 'debug', arch = 'i386', os = 'linux')
+shellcode = asm(shellcraft.sh())
+```
+
+相当于：
+
+```
+/* execve(path='/bin///sh', argv=['sh'], envp=0) */
+
+/* 1. 压入目标路径 b'/bin///sh\x00' */
+push 0x68              ; 压入 'h' 和补齐的 null byte
+push 0x732f2f2f        ; 压入 's///'
+push 0x6e69622f        ; 压入 'nib/' (即 '/bin')
+mov ebx, esp           ; ebx = 栈顶指针 (此时指向 '/bin///sh\x00')
+
+/* 2. 构造参数数组 argv = ['sh\x00'] */
+push 0x1010101         ; 压入一个用来异或的 dummy 值
+xor dword ptr [esp], 0x1016972 ; 栈顶值异或后变成 0x6873 ('sh\x00\x00')
+xor ecx, ecx           ; ecx 清零
+push ecx               ; 压入 NULL 截断符
+push 4                 ; 将 4 压栈
+pop ecx                ; 弹出到 ecx，此时 ecx = 4
+add ecx, esp           ; ecx = esp + 4 (跳过 NULL，指向 'sh\x00')
+push ecx               ; 将指向 'sh\x00' 的指针压栈
+mov ecx, esp           ; ecx = 栈顶指针 (参数 argv 构造完毕)
+
+/* 3. 环境变量与系统调用号 */
+xor edx, edx
+```
+
+---
+
+---
+
+---
+
+```
+# 64位
+from pwn import *
+context(log_level = 'debug', arch = 'amd64', os = 'linux')
+shellcode = asm(shellcraft.sh())
+```
+
+相当于：
+
+```
+/* execve(path='/bin//sh', argv=0, envp=0) */
+
+/* 1. 清空 rsi 和 rdx (argv = NULL, envp = NULL) */
+xor esi, esi           ; rsi 清零 (32位寄存器操作会自动清零高32位，比 xor rsi, rsi 字节更短)
+xor edx, edx           ; rdx 清零
+
+/* 2. 压入目标路径 b'/bin//sh\x00' */
+push rsi               ; 压入 rsi (此时为 0)，作为字符串结尾的 null byte
+mov rbx, 0x68732f2f6e69622f ; 将 '/bin//sh' (小端序) 存入 rbx
+push rbx               ; 将 rbx 压栈
+mov rdi, rsp           ; rdi = 栈顶指针 (此时指向 '/bin//sh\x00')
+
+/* 3. 系统调用号 */
+push 59 /* 0x3b */     ; 压入 execve 的系统调用号 59
+pop rax                ; 弹出到 rax，此时 rax = 59
+
+/* 4. 触发系统调用 */
+syscall                ; 陷入内核，执行 execve
+```
+
+
+
+pwntools生成的比较复杂，理解来就是为了避免0字节的出现影响程序。
+
+
+
+---
+
+
+
+### 大端序与小端序：
+
+MSB与LSB，假设我们有一串数字1234，我们的起始地址为0x1000
+
+在大端序中遵循我们的直觉：
+
+| 地址     | 0x1000 | 0x1001 | 0x1002 | 0x1003 |
+| -------- | ------ | ------ | ------ | ------ |
+| **数据** | 1      | 2      | 3      | 4      |
+
+非常直接。
+
+但在小端序中，要求高位要放在高地址，低位放在低地址，也就是：
+
+| 地址     | 0x1000 | 0x1001 | 0x1002 | 0x1003 |
+| -------- | ------ | ------ | ------ | ------ |
+| **数据** | 4      | 3      | 2      | 1      |
+
+毕竟对于我们来说，一串数字，左边的高位，右边的低位，这就造成了反直觉的情况。
+
+在做题中我们需要使用file指令来查看二进制文件是大端序还是小端序。
+
+
+
+---
 
 
 
