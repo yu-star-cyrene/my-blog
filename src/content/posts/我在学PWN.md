@@ -1,5 +1,5 @@
 ---
-title: "我在学PWN"
+title: "我在学PWN.md"
 image: ''
 pinned: false
 comment: true
@@ -43,6 +43,13 @@ ld：链接器	-m elf_i386：指定生成的程序格式为32位	-o i386：生�
 
 ```
 seccomp-tools：检查程序能使用的系统调用	dump：输出	./orw：./+文件名
+```
+
+`nm ./vuln`
+
+```
+查看程序内的函数。
+nm：指令	./+程序名
 ```
 
 
@@ -372,6 +379,8 @@ int 0x80
 
 ![image-20260224223233092](/images/image-20260224223233092.png)
 
+##### payload:
+
 ```
 from pwn import *
 
@@ -472,13 +481,15 @@ p.interactive()
 
 直接寻找bss段找个地址，然后写入我们的shellcode。
 
+##### paylaod:
+
 ```
 from pwn import *
 
 file_path = './orw'
 context(binary=file_path, os='linux')
 
-p = remote('node5.buuoj.cn', 27032)
+p = remote('node5.buuoj.cn', 26386)
 
 shellcode = shellcraft.open('/flag')
 shellcode += shellcraft.read(3, 0x0804A160, 100)
@@ -494,7 +505,50 @@ p.interactive()
 
 啧，发生了很离谱的事情，是跟视频里一模一样的原题，但本地打通了，远程却不对，找了份wp的payload抄了一下，也不行，感觉像是题目的问题，但每次这种感觉的时候，就是我打不进去漏洞，然后做不出来。
 
-wait a minute
+![image-20260226171041015](/images/image-20260226171041015.png)
+
+没招了，找了老版本的ubuntu打通了本地，但远程的还是有问题，初步排查，高版本的vvmap和低版本的不同，低版本基本所有段都可以执行，但高版本就不行。
+
+之后再排查一下。
+
+
+
+---
+
+
+
+#### 实战orw.1：[HGAME 2023 week1]orw
+
+![image-20260227160959819](/images/image-20260227160959819.png)
+
+![image-20260227161307167](/images/image-20260227161307167.png)
+
+![image-20260227161606866](/images/image-20260227161606866.png)
+
+![image-20260227161653198](/images/image-20260227161653198.png)
+
+初步分析，64位、小端序，如果调用出现execve或者execveat，那就跳转0004，终止，说明又是system的调用失败，必须用orw代替。
+
+NX开启，不能使用简单的栈溢出覆盖返回地址执行我们的shellcode，要使用rop来绕过。
+PIE不变，可以直接使用ida里面的地址。
+
+根据vmmap的内容，栈只有读写权限，没有执行权限，cpu是在栈上寻找地址进行执行，而直接写在栈上的shellcode(指正常orw)执行不了，所以要用rop技术让cpu跳转到有执行权限的地方执行shellcode。
+
+思路：具有执行权限的段有：0x401000 - 0x402000（vuln），0x7ffff7df5000 - 0x7ffff7f6d000（libc）。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
