@@ -1,18 +1,29 @@
 import os
 import re
+import json
 import shutil
 import time
 import subprocess
 import webbrowser
+import getpass
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 # ==================== ⚙️ 基础配置 ====================
 
+def _default_base_dir() -> Path:
+    try:
+        return Path(__file__).resolve().parent
+    except:
+        return Path.cwd()
+
 @dataclass
 class Settings:
-    base_dir: Path = Path.cwd()
+    base_dir: Path = _default_base_dir()
     posts_dir: Path = Path("src/content/posts")
     config_path: Path = Path("src/config/siteConfig.ts")
     profile_config_path: Path = Path("src/config/profileConfig.ts")
@@ -25,6 +36,18 @@ class Settings:
     copyright_line: str = "- **版权声明**：本文由 **余林阳** 创作，转载请注明出处。"
 
     def __post_init__(self):
+        # 把相对路径统一挂到 base_dir 下，避免你不在仓库根目录运行就崩
+        def join_if_rel(p: Path) -> Path:
+            return p if p.is_absolute() else (self.base_dir / p)
+
+        self.posts_dir = join_if_rel(self.posts_dir)
+        self.config_path = join_if_rel(self.config_path)
+        self.profile_config_path = join_if_rel(self.profile_config_path)
+        self.ad_config_path = join_if_rel(self.ad_config_path)
+        self.wallpaper_config_path = join_if_rel(self.wallpaper_config_path)
+        self.public_img_dir = join_if_rel(self.public_img_dir)
+        self.wallpaper_dir = join_if_rel(self.wallpaper_dir)
+
         if self.categories is None:
             self.categories = ["秘籍", "刷题", "学习", "知识点"]
 
@@ -32,27 +55,27 @@ class Settings:
 S = Settings()
 IS_WIN = os.name == "nt"
 
+IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
 # ==================== 🧱 基础工具 ====================
 
 def clear_screen():
     os.system("cls" if IS_WIN else "clear")
 
-
-def ensure_dir(p: Path):
-    p.mkdir(parents=True, exist_ok=True)
-
+def ensure_dir(p: Path) -> bool:
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        return True
+    except Exception:
+        return False
 
 def read_text(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
-
 def write_text_if_changed(p: Path, content: str):
-    """只有内容变了才写回，减少IO/减少格式漂移风险"""
     old = p.read_text(encoding="utf-8") if p.exists() else ""
     if old != content:
         p.write_text(content, encoding="utf-8")
-
 
 def safe_int(s: str, default: int = 0) -> int:
     try:
@@ -60,24 +83,17 @@ def safe_int(s: str, default: int = 0) -> int:
     except:
         return default
 
-
 def now_date() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
-
 def now_stamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
-
 
 # ==================== 🧾 Frontmatter 解析/写回（稳） ====================
 
 FM_RE = re.compile(r"(?s)^\s*---\s*\r?\n(.*?)\r?\n---\s*\r?\n(.*)$")
 
 def parse_frontmatter(content: str):
-    """
-    返回 (meta:dict, body:str, has_fm:bool)
-    只支持你现在这种 k: v 的简单风格（足够用了），并兼容 CRLF。
-    """
     m = FM_RE.match(content)
     if not m:
         return {}, content.strip(), False
@@ -93,33 +109,25 @@ def parse_frontmatter(content: str):
         k = k.strip()
         v = v.strip()
 
-        # 去引号
         if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
             v = v[1:-1]
-
         meta[k] = v
+
     return meta, body, True
 
+def truthy(v: str) -> bool:
+    return str(v).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 def normalize_tags(tags: str, category: str) -> str:
-    """
-    保证 tags 最终输出为类似: [刷题] / [刷题, 学习]
-    """
     t = (tags or "").strip()
     if not t:
         return f"[{category}]"
     if t.startswith("[") and t.endswith("]"):
         return t
-    # 允许 "刷题" 这种
     return f"[{t}]"
 
-
-def truthy(v: str) -> bool:
-    return str(v).strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
 def standardize_frontmatter(content: str, default_title: str = "") -> str:
-    meta, body, has_fm = parse_frontmatter(content)
+    meta, body, _ = parse_frontmatter(content)
 
     title = meta.get("title", default_title).strip() or default_title
     image = meta.get("image", "").strip()
@@ -145,16 +153,12 @@ def standardize_frontmatter(content: str, default_title: str = "") -> str:
 
     return f"{new_header}\n\n{body}\n"
 
-
 def update_frontmatter_field(content: str, key: str, value: str) -> str:
     meta, body, _ = parse_frontmatter(content)
     meta[key] = value
 
-    # 用 standardize 统一输出顺序/格式
-    # 这里把 meta 先写回一个临时 frontmatter 再 normalize
     temp = ["---"]
     for k, v in meta.items():
-        # 尽量保留原来的写法：title/description 用双引号，image 用单引号，其它原样
         if k in {"title", "description"}:
             temp.append(f'{k}: "{v}"')
         elif k == "image":
@@ -165,21 +169,18 @@ def update_frontmatter_field(content: str, key: str, value: str) -> str:
     temp.append(body)
     return standardize_frontmatter("\n".join(temp), meta.get("title", ""))
 
-
-# ==================== 🕵️‍♂️ 配置修复 ====================
+# ==================== 🧹 配置修复 ====================
 
 def auto_fix_corrupted_config():
     if not S.config_path.exists():
         return
     try:
         c = read_text(S.config_path)
-        # 你原来的修复：themeColor: { a, ... } 这种损坏
         if re.search(r"themeColor:\s*\{\s*[a-zA-Z]\s*,", c):
             c2 = re.sub(r"(themeColor:\s*\{\s*)[a-zA-Z]\s*,", r"\1hue: 250,", c)
             write_text_if_changed(S.config_path, c2)
-    except Exception:
+    except:
         pass
-
 
 # ==================== 📚 文章扫描 ====================
 
@@ -189,10 +190,8 @@ def get_all_posts():
         for p in S.posts_dir.rglob("*"):
             if p.is_file() and p.suffix.lower() in {".md", ".mdx"}:
                 posts.append({"name": p.name, "path": p})
-    # 稳定排序：先文件名
     posts.sort(key=lambda x: x["name"].lower())
     return posts
-
 
 def get_post_title_from_file(p: Path) -> str:
     try:
@@ -203,22 +202,41 @@ def get_post_title_from_file(p: Path) -> str:
         pass
     return p.stem
 
+# ==================== 🏷️ 分类自动读取（你要的核心） ====================
 
-# ==================== 📦 备份模块（更快：过滤大目录） ====================
+CATEGORY_COUNTS = {}
+
+def refresh_categories():
+    global CATEGORY_COUNTS
+    counts = {}
+
+    posts = get_all_posts()
+    for p in posts:
+        try:
+            meta, _, has_fm = parse_frontmatter(read_text(p["path"]))
+            cat = (meta.get("category") or "").strip() if has_fm else ""
+            cat = cat or "刷题"
+            counts[cat] = counts.get(cat, 0) + 1
+        except:
+            counts["刷题"] = counts.get("刷题", 0) + 1
+
+    CATEGORY_COUNTS = dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+    S.categories = list(CATEGORY_COUNTS.keys()) if CATEGORY_COUNTS else ["刷题"]
+
+# ==================== 📦 备份模块 ====================
 
 def run_backup():
-    ensure_dir(S.backup_dir)
+    if not ensure_dir(S.backup_dir):
+        print(f"⚠️ 无法创建备份目录：{S.backup_dir}（已跳过备份，不影响继续）")
+        return
+
     print(f"\n=== 📦 正在备份到 {S.backup_dir} ... ===")
 
     temp_dir = S.backup_dir / "temp_pack"
     zip_base = S.backup_dir / f"Blog_Backup_{now_stamp()}"
 
-    def ignore_patterns(dirpath, names):
-        # 过滤常见大目录/构建产物
-        ignores = {
-            "node_modules", ".git", ".astro", "dist", "build", ".next",
-            ".DS_Store", "pnpm-lock.yaml"  # 这个你要不要备份随意；不要就留这里
-        }
+    def ignore_patterns(_dirpath, names):
+        ignores = {"node_modules", ".git", ".astro", "dist", "build", ".next", ".DS_Store"}
         return {n for n in names if n in ignores}
 
     try:
@@ -243,8 +261,7 @@ def run_backup():
     except Exception as e:
         print(f"❌ 备份失败: {e}")
 
-
-# ==================== 📌 置顶管理（更稳） ====================
+# ==================== 📌 置顶管理 ====================
 
 def manage_pinned_status():
     while True:
@@ -268,11 +285,10 @@ def manage_pinned_status():
             p_path = posts[idx]["path"]
             content = read_text(p_path)
 
-            meta, body, has_fm = parse_frontmatter(content)
+            meta, body, _ = parse_frontmatter(content)
             cur = truthy(meta.get("pinned", "false"))
             meta["pinned"] = "true" if not cur else "false"
 
-            # 重新组装再标准化
             temp = ["---"]
             for k, v in meta.items():
                 if k in {"title", "description"}:
@@ -289,17 +305,13 @@ def manage_pinned_status():
             print("✅ 状态已切换。")
             time.sleep(0.5)
 
-
 # ==================== 🖼️ 图片与封面 ====================
-
-IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
 
 def list_public_images():
     ensure_dir(S.public_img_dir)
     imgs = [p for p in S.public_img_dir.iterdir() if p.is_file() and p.suffix.lower() in IMG_EXTS]
     imgs.sort(key=lambda x: x.name.lower())
     return imgs
-
 
 def copy_image_to_public(src: Path) -> str:
     ensure_dir(S.public_img_dir)
@@ -308,13 +320,11 @@ def copy_image_to_public(src: Path) -> str:
 
     dst = S.public_img_dir / src.name
     if dst.exists():
-        # 避免覆盖：加时间戳后缀
         stem = src.stem
         dst = S.public_img_dir / f"{stem}_{now_stamp()}{src.suffix}"
 
     shutil.copy2(src, dst)
     return f"/images/{dst.name}"
-
 
 def pick_image_ui() -> str:
     imgs = list_public_images()
@@ -331,14 +341,12 @@ def pick_image_ui() -> str:
         return ""
     if c == "U":
         src = input("👉 请拖入图片: ").strip().strip('"\'')
-        p = Path(src)
-        return copy_image_to_public(p)
+        return copy_image_to_public(Path(src))
     if c.isdigit():
         idx = int(c) - 1
         if 0 <= idx < len(imgs):
             return f"/images/{imgs[idx].name}"
     return ""
-
 
 def set_post_cover():
     posts = get_all_posts()
@@ -368,32 +376,86 @@ def set_post_cover():
     write_text_if_changed(p_path, newc)
     print("✅ 封面已更新。")
 
+# ==================== 🚚 搬运图片（独立按键） ====================
+
+def migrate_images_in_posts():
+    r"""
+    仅搬运 Markdown 图片语法里的 Windows 绝对路径图片：
+    ![](C:\xxx\1.png) -> ![](/images/1.png)
+    并复制到 public/images
+    """
+    ensure_dir(S.public_img_dir)
+    posts = get_all_posts()
+    if not posts:
+        print("❌ 没找到文章。")
+        return
+
+    total_hits, total_copied = 0, 0
+    print("\n🚚 正在搬运图片...")
+
+    for p in posts:
+        path = p["path"]
+        content = read_text(path)
+        changed = False
+
+        local_imgs = re.findall(
+            r"(!\[.*?\]\()([a-zA-Z]:[\\/].*?\.(?:png|jpg|jpeg|webp|gif|svg))(\))",
+            content,
+            flags=re.IGNORECASE,
+        )
+        if not local_imgs:
+            continue
+
+        for _, lp, _ in local_imgs:
+            total_hits += 1
+            clp = Path(lp.strip().strip('"\''))
+            if clp.exists():
+                new_url = copy_image_to_public(clp)
+                if new_url:
+                    content = content.replace(lp, new_url)
+                    changed = True
+                    total_copied += 1
+
+        if changed:
+            write_text_if_changed(path, content)
+
+    print(f"✅ 搬运完成：匹配到 {total_hits} 处，本次成功搬运 {total_copied} 张。")
+
+# ==================== 🧾 版权（只在没有时追加一次） ====================
+
+COPY_RE = re.compile(r"(?mi)^\s*-\s*\*\*版权声明\*\*\s*[:：].*$")
+
+def has_copyright(content: str) -> bool:
+    if COPY_RE.search(content):
+        return True
+    if "本文由 **余林阳** 创作" in content:
+        return True
+    return False
+
+def ensure_copyright_once(content: str) -> str:
+    if has_copyright(content):
+        return content if content.endswith("\n") else content + "\n"
+    tail = content.rstrip()
+    return tail + f"\n\n---\n\n{S.copyright_line}\n"
 
 # ==================== 📝 文章管理逻辑 ====================
-
-def ensure_copyright_block(content: str) -> str:
-    """
-    保证文末只有一份版权声明（你原来是用分隔线 + COPYRIGHT）
-    """
-    # 去掉重复的版权块（粗暴但有效）
-    content2 = re.sub(r"(?s)\n---\s*\n\n- \*\*版权声明\*\*:.*?$", "", content.strip())
-    content2 = content2.rstrip() + f"\n\n---\n\n{S.copyright_line}\n"
-    return content2
-
 
 def process_posts(mode="format"):
     ensure_dir(S.posts_dir)
     ensure_dir(S.public_img_dir)
 
     if mode == "new":
+        refresh_categories()  # ✅ 新建前刷新分类统计
+
         t = input("\n👉 文章标题: ").strip()
         if not t:
             return
         desc = input(f"👉 描述 (默认 {t}): ").strip() or t
 
-        print("\n--- 选择分类 ---")
+        print("\n--- 选择分类（自动统计） ---")
         for i, cat in enumerate(S.categories):
-            print(f"  {i+1}. {cat}")
+            cnt = CATEGORY_COUNTS.get(cat, 0)
+            print(f"  {i+1}. {cat} ({cnt})")
         print("  0. ➕ 新建分类")
         cat_c = input("👉 选择: ").strip()
 
@@ -411,7 +473,6 @@ def process_posts(mode="format"):
         if input("👉 是否设置封面? (y/n): ").strip().lower() == "y":
             img = pick_image_ui()
 
-        # 文件名清洗（避免 Windows 特殊字符）
         safe_name = re.sub(r'[\\/:*?"<>|]', "_", t).strip()
         p = S.posts_dir / f"{safe_name}.md"
 
@@ -429,42 +490,21 @@ def process_posts(mode="format"):
             "内容...\n"
         )
         final = standardize_frontmatter(template, t)
-        final = ensure_copyright_block(final)
-
+        final = ensure_copyright_once(final)  # ✅ 只加一次
         write_text_if_changed(p, final)
         print(f"✅ 《{t}》创建成功！")
         return
 
-    # ========== 全站校对 ==========
-    print("\n🔍 扫描图片并校对排版...")
-
-    for p in get_all_posts():
+    # ========== 全站格式对齐（不搬运图片！不重复加版权！） ==========
+    print("\n🔍 正在全站格式对齐...")
+    posts = get_all_posts()
+    for p in posts:
         content = read_text(p["path"])
-
-        # 1) 把正文里 Windows 绝对路径图片复制到 public/images 并替换成 /images/xxx
-        #    只替换 markdown 图片语法里括号的路径
-        local_imgs = re.findall(
-            r"(!\[.*?\]\()([a-zA-Z]:[\\/].*?\.(?:png|jpg|jpeg|webp|gif|svg))(\))",
-            content,
-            flags=re.IGNORECASE,
-        )
-        for _, lp, _ in local_imgs:
-            clp = Path(lp.strip().strip('"\''))
-            if clp.exists():
-                new_url = copy_image_to_public(clp)
-                if new_url:
-                    content = content.replace(lp, new_url)
-
-        # 2) 统一 frontmatter
         content = standardize_frontmatter(content, get_post_title_from_file(p["path"]))
-
-        # 3) 补版权
-        content = ensure_copyright_block(content)
-
+        content = ensure_copyright_once(content)  # ✅ 没有才加
         write_text_if_changed(p["path"], content)
-
-    print("✅ 全站校对完成。")
-
+    print("✅ 全站格式对齐完成。")
+    refresh_categories()
 
 # ==================== 🗑️ 删除文章 ====================
 
@@ -494,16 +534,11 @@ def delete_post():
         except Exception as e:
             print(f"❌ 删除失败: {e}")
     time.sleep(1)
+    refresh_categories()
 
-
-# ==================== 🌅 换壁纸中心（可用版） ====================
+# ==================== 🌅 换壁纸中心 ====================
 
 def wallpaper_center():
-    """
-    你的 wallpaper_config_path 看起来是 TS 配置，这里做一个“改 title + 改图片路径”的通用替换：
-    - title: "xxx"
-    - image: "xxx" 或 wallpaper: "xxx"（如果你项目字段不是 image，就按你实际字段改下面两行 regex）
-    """
     if not S.wallpaper_config_path.exists():
         print(f"❌ 找不到壁纸配置: {S.wallpaper_config_path}")
         time.sleep(1.2)
@@ -532,7 +567,8 @@ def wallpaper_center():
                 time.sleep(1)
 
         elif op in {"2", "3"}:
-            # 允许从 wallpaper_dir / public_img_dir 两处选
+            import random
+
             candidates = []
             if S.wallpaper_dir.exists():
                 candidates += [p for p in S.wallpaper_dir.rglob("*") if p.is_file() and p.suffix.lower() in IMG_EXTS]
@@ -547,7 +583,6 @@ def wallpaper_center():
                 continue
 
             if op == "3":
-                import random
                 pick = random.choice(candidates)
             else:
                 for i, p in enumerate(candidates[:200]):
@@ -560,32 +595,24 @@ def wallpaper_center():
                     continue
                 pick = candidates[idx]
 
-            # 统一把壁纸路径写成相对 public 的 URL
-            # 如果 pick 在 public/assets/images 下 -> /assets/images/xxx
-            # 如果 pick 在 public/images 下 -> /images/xxx
             pick_str = str(pick).replace("\\", "/")
             if "/public/assets/" in pick_str:
                 url = pick_str.split("/public", 1)[1]
             elif "/public/" in pick_str:
                 url = pick_str.split("/public", 1)[1]
             else:
-                # 外部图片：复制到 public/images
                 url = copy_image_to_public(pick)
 
             if not url.startswith("/"):
                 url = "/" + url
 
-            # ⚠️ 这里假设你的 wallpaper ts 里有 image: "..."
-            # 如果你实际字段叫 wallpaper / background / src，自行把 image 改成对应字段
             c2 = re.sub(r'(image:\s*)["\'].*?["\']', rf'\1"{url}"', c, count=1)
             if c2 == c:
-                # 如果没 image 字段，尝试 wallpaper 字段
                 c2 = re.sub(r'(wallpaper:\s*)["\'].*?["\']', rf'\1"{url}"', c, count=1)
 
             write_text_if_changed(S.wallpaper_config_path, c2)
             print(f"✅ 壁纸已更新: {url}")
             time.sleep(1.2)
-
 
 # ==================== ⚙️ 设置中心 ====================
 
@@ -623,64 +650,360 @@ def update_site_config():
         print("✅ 已保存。")
         time.sleep(1)
 
-
-# ==================== 🚀 运行与发布（更稳） ====================
+# ==================== 🚀 本地预览 ====================
 
 def run_dev():
-    # 打开浏览器
     try:
         webbrowser.open("http://localhost:4321")
     except:
         pass
 
-    # 启动 pnpm dev
     try:
         if IS_WIN:
-            os.system("start cmd /k pnpm dev")
+            # 在新窗口里先 cd 到仓库根目录再启动 pnpm
+            cmd = f'start "pnpm dev" cmd /k "cd /d {str(S.base_dir)} && pnpm dev"'
+            os.system(cmd)
         else:
             subprocess.Popen(["pnpm", "dev"], cwd=str(S.base_dir))
     except Exception as e:
         print(f"❌ 启动失败: {e}")
         time.sleep(1.2)
 
+# ==================== ☁️ 发布（修复：无改动但 ahead 也会 push；push 不 capture） ====================
+
+def run_cmd_capture(cmd, cwd=None):
+    return subprocess.run(cmd, check=False, capture_output=True, text=True, cwd=cwd or str(S.base_dir))
 
 def has_git_changes() -> bool:
     try:
-        r = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        r = run_cmd_capture(["git", "status", "--porcelain"])
         return bool(r.stdout.strip())
     except:
-        return True  # 不确定就当有变化
+        return True
 
+def git_ahead_count() -> int:
+    """
+    返回 HEAD 比上游 @{u} 多多少个 commit
+    """
+    try:
+        r = run_cmd_capture(["git", "rev-list", "--count", "@{u}..HEAD"])
+        if r.returncode != 0:
+            return 0
+        return safe_int(r.stdout.strip(), 0)
+    except:
+        return 0
+
+def git_push_main_interactive() -> int:
+    env = os.environ.copy()
+    env.pop("GIT_ASKPASS", None)
+    env.pop("SSH_ASKPASS", None)
+    env["GIT_TERMINAL_PROMPT"] = "1"
+
+    # 不 capture_output，让 git 走正常凭据弹窗/输入
+    r = subprocess.run(
+        ["git", "push", "origin", "main"],
+        cwd=str(S.base_dir),
+        env=env,
+        check=False,
+    )
+    return r.returncode
 
 def run_deploy():
     run_backup()
 
-    if not has_git_changes():
-        print("✅ 没有检测到改动，无需提交。")
+    changed = has_git_changes()
+    ahead = git_ahead_count()
+
+    if not changed and ahead <= 0:
+        print("✅ 没有检测到改动，且没有待推送的提交。")
         return
 
-    def run_cmd(cmd):
-        return subprocess.run(cmd, check=False, capture_output=True, text=True)
+    if changed:
+        r = run_cmd_capture(["git", "add", "."])
+        if r.returncode != 0:
+            print("❌ git add 失败：", (r.stderr.strip() or r.stdout.strip()))
+            return
 
-    r = run_cmd(["git", "add", "."])
-    if r.returncode != 0:
-        print("❌ git add 失败：", r.stderr.strip() or r.stdout.strip())
-        return
+        msg = f"update blog content {now_stamp()}"
+        r = run_cmd_capture(["git", "commit", "-m", msg])
+        if r.returncode != 0:
+            out = (r.stderr.strip() or r.stdout.strip())
+            print("⚠️ git commit 提示：", out)
+            # 不直接 return，仍可能需要 push（比如已有提交）
 
-    msg = f"update blog content {now_stamp()}"
-    r = run_cmd(["git", "commit", "-m", msg])
-    if r.returncode != 0:
-        # 可能是 no changes / hooks 等
-        out = (r.stderr.strip() or r.stdout.strip())
-        print("⚠️ git commit 提示：", out)
-        # 不直接 return，尝试 push（有时你本地 commit hook 拦了）
-    r = run_cmd(["git", "push", "origin", "main"])
-    if r.returncode != 0:
-        print("❌ git push 失败：", r.stderr.strip() or r.stdout.strip())
+    # push（允许交互）
+    code = git_push_main_interactive()
+    if code != 0:
+        print("❌ git push 失败：请在仓库目录手动执行一次 `git push origin main` 完成授权后再试。")
         return
 
     print("✅ 发布成功。")
 
+# ==================== 🧹 GitHub Actions 清理（删除记录/日志/Artifacts） ====================
+
+def get_origin_owner_repo():
+    """
+    从 `git remote get-url origin` 解析 owner/repo
+    支持：
+      https://github.com/owner/repo.git
+      git@github.com:owner/repo.git
+    """
+    r = run_cmd_capture(["git", "remote", "get-url", "origin"])
+    if r.returncode != 0:
+        return None, None
+    url = (r.stdout.strip() or "").strip()
+
+    m = re.search(r"github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/.]+)", url)
+    if not m:
+        return None, None
+    return m.group("owner"), m.group("repo")
+
+def get_github_token() -> str:
+    """
+    优先读环境变量：GITHUB_TOKEN / GH_TOKEN
+    否则安全输入（不回显）
+    """
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if tok and tok.strip():
+        return tok.strip()
+    print("\n⚠️ 需要 GitHub Token 才能操作 Actions 记录（建议设置环境变量 GITHUB_TOKEN）。")
+    return getpass.getpass("👉 请输入 Token（不会回显）：").strip()
+
+def gh_request(method: str, path: str, token: str, params: dict | None = None):
+    base = "https://api.github.com"
+    url = base + path
+    if params:
+        url += "?" + urlencode(params)
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "blog-tool",
+    }
+
+    req = Request(url, headers=headers, method=method.upper())
+    try:
+        with urlopen(req, timeout=20) as resp:
+            data = resp.read()
+            if not data:
+                return resp.status, None
+            try:
+                return resp.status, json.loads(data.decode("utf-8"))
+            except:
+                return resp.status, data.decode("utf-8", errors="ignore")
+    except HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="ignore")
+        except:
+            body = ""
+        return e.code, body
+    except URLError as e:
+        return 0, f"Network error: {e}"
+
+def iso_to_dt(s: str):
+    # GitHub 返回 "2026-03-04T12:34:56Z"
+    try:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except:
+        return None
+
+def list_workflow_runs(owner: str, repo: str, token: str, per_page=30, page=1):
+    path = f"/repos/{owner}/{repo}/actions/runs"
+    status, data = gh_request("GET", path, token, params={"per_page": per_page, "page": page})
+    return status, data
+
+def delete_workflow_run(owner: str, repo: str, token: str, run_id: int):
+    path = f"/repos/{owner}/{repo}/actions/runs/{run_id}"
+    return gh_request("DELETE", path, token)
+
+def delete_workflow_run_logs(owner: str, repo: str, token: str, run_id: int):
+    path = f"/repos/{owner}/{repo}/actions/runs/{run_id}/logs"
+    return gh_request("DELETE", path, token)
+
+def list_artifacts(owner: str, repo: str, token: str, per_page=30, page=1):
+    path = f"/repos/{owner}/{repo}/actions/artifacts"
+    status, data = gh_request("GET", path, token, params={"per_page": per_page, "page": page})
+    return status, data
+
+def delete_artifact(owner: str, repo: str, token: str, artifact_id: int):
+    path = f"/repos/{owner}/{repo}/actions/artifacts/{artifact_id}"
+    return gh_request("DELETE", path, token)
+
+def confirm_dangerous(op_name: str) -> bool:
+    print(f"\n⚠️ 危险操作：{op_name}（不可恢复）")
+    w = input("输入 DELETE 确认继续，否则取消：").strip()
+    return w == "DELETE"
+
+def actions_cleanup_center():
+    owner, repo = get_origin_owner_repo()
+    if not owner or not repo:
+        print("❌ 无法从 git remote origin 解析 owner/repo。请确保在仓库目录运行且已配置 origin。")
+        time.sleep(1.5)
+        return
+
+    token = get_github_token()
+    if not token:
+        print("❌ 没有 token，已取消。")
+        time.sleep(1.2)
+        return
+
+    while True:
+        clear_screen()
+        print("\n=== 🧹 Actions 清理中心 ===")
+        print(f"Repo: {owner}/{repo}")
+        print("1. 列出最近 Workflow Runs（记录）")
+        print("2. 删除指定 Run（按 run_id）")
+        print("3. 批量删除早于 N 天的 Runs")
+        print("4. 仅删除指定 Run 的 Logs（不删 Run 记录）")
+        print("5. 列出 Artifacts")
+        print("6. 批量删除早于 N 天的 Artifacts")
+        print("0. 返回")
+
+        op = input("👉 选择: ").strip()
+        if op == "0":
+            return
+
+        if op == "1":
+            n = safe_int(input("显示多少条（建议 20/50）: ").strip(), 20)
+            per_page = min(max(n, 1), 100)
+            st, data = list_workflow_runs(owner, repo, token, per_page=per_page, page=1)
+            if st != 200 or not isinstance(data, dict):
+                print(f"❌ 拉取失败：HTTP {st}\n{data}")
+                input("回车继续...")
+                continue
+
+            runs = data.get("workflow_runs", [])[:n]
+            print("\nID | created | name | status | conclusion")
+            print("-" * 90)
+            for r in runs:
+                rid = r.get("id")
+                created = r.get("created_at", "")
+                name = (r.get("name") or r.get("display_title") or "")[:30]
+                status = r.get("status", "")
+                concl = r.get("conclusion", "")
+                print(f"{rid} | {created} | {name} | {status} | {concl}")
+            input("\n回车继续...")
+
+        elif op == "2":
+            run_id = safe_int(input("输入要删除的 run_id: ").strip(), 0)
+            if run_id <= 0:
+                continue
+            if not confirm_dangerous(f"删除 Workflow Run: {run_id}"):
+                continue
+            st, data = delete_workflow_run(owner, repo, token, run_id)
+            if st == 204:
+                print("✅ 删除成功。")
+            else:
+                print(f"❌ 删除失败：HTTP {st}\n{data}")
+            input("回车继续...")
+
+        elif op == "3":
+            days = safe_int(input("删除早于多少天（例如 30）: ").strip(), 30)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+            if not confirm_dangerous(f"批量删除早于 {days} 天的 Runs"):
+                continue
+
+            deleted = 0
+            page = 1
+            while True:
+                st, data = list_workflow_runs(owner, repo, token, per_page=100, page=page)
+                if st != 200 or not isinstance(data, dict):
+                    print(f"\n❌ 拉取失败：HTTP {st}\n{data}")
+                    break
+
+                runs = data.get("workflow_runs", [])
+                if not runs:
+                    break
+
+                for r in runs:
+                    rid = r.get("id")
+                    dt = iso_to_dt(r.get("created_at", "") or "")
+                    if dt and dt < cutoff:
+                        st2, d2 = delete_workflow_run(owner, repo, token, int(rid))
+                        if st2 == 204:
+                            deleted += 1
+                            print(f"🗑️ 删除 run {rid} OK")
+                        else:
+                            print(f"❌ 删除 run {rid} 失败：HTTP {st2} {d2}")
+
+                page += 1
+
+            print(f"\n✅ 批量删除完成：共删除 {deleted} 条。")
+            input("回车继续...")
+
+        elif op == "4":
+            run_id = safe_int(input("输入要删 logs 的 run_id: ").strip(), 0)
+            if run_id <= 0:
+                continue
+            if not confirm_dangerous(f"仅删除 Run Logs: {run_id}"):
+                continue
+            st, data = delete_workflow_run_logs(owner, repo, token, run_id)
+            if st == 204:
+                print("✅ Logs 删除成功。")
+            else:
+                print(f"❌ 删除失败：HTTP {st}\n{data}")
+            input("回车继续...")
+
+        elif op == "5":
+            n = safe_int(input("显示多少条（建议 20/50）: ").strip(), 20)
+            per_page = min(max(n, 1), 100)
+            st, data = list_artifacts(owner, repo, token, per_page=per_page, page=1)
+            if st != 200 or not isinstance(data, dict):
+                print(f"❌ 拉取失败：HTTP {st}\n{data}")
+                input("回车继续...")
+                continue
+
+            arts = data.get("artifacts", [])[:n]
+            print("\nID | created | name | expired | size(bytes)")
+            print("-" * 90)
+            for a in arts:
+                aid = a.get("id")
+                created = a.get("created_at", "")
+                name = (a.get("name") or "")[:30]
+                expired = a.get("expired", "")
+                sizeb = a.get("size_in_bytes", "")
+                print(f"{aid} | {created} | {name} | {expired} | {sizeb}")
+            input("\n回车继续...")
+
+        elif op == "6":
+            days = safe_int(input("删除早于多少天（例如 30）: ").strip(), 30)
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+            if not confirm_dangerous(f"批量删除早于 {days} 天的 Artifacts"):
+                continue
+
+            deleted = 0
+            page = 1
+            while True:
+                st, data = list_artifacts(owner, repo, token, per_page=100, page=page)
+                if st != 200 or not isinstance(data, dict):
+                    print(f"\n❌ 拉取失败：HTTP {st}\n{data}")
+                    break
+
+                arts = data.get("artifacts", [])
+                if not arts:
+                    break
+
+                for a in arts:
+                    aid = a.get("id")
+                    dt = iso_to_dt(a.get("created_at", "") or "")
+                    if dt and dt < cutoff:
+                        st2, d2 = delete_artifact(owner, repo, token, int(aid))
+                        if st2 == 204:
+                            deleted += 1
+                            print(f"🗑️ 删除 artifact {aid} OK")
+                        else:
+                            print(f"❌ 删除 artifact {aid} 失败：HTTP {st2} {d2}")
+
+                page += 1
+
+            print(f"\n✅ 批量删除完成：共删除 {deleted} 个 artifacts。")
+            input("回车继续...")
+
+        else:
+            pass
 
 # ==================== 🧭 主菜单 ====================
 
@@ -688,15 +1011,17 @@ def main():
     auto_fix_corrupted_config()
     ensure_dir(S.posts_dir)
     ensure_dir(S.public_img_dir)
+    refresh_categories()
 
     while True:
         clear_screen()
-        print("\n" + "=" * 45 + "\n      🔥 余林阳 全能博客助手 v13.0\n" + "=" * 45)
+        print("\n" + "=" * 45 + "\n       YU's 博客助手 v13.1\n" + "=" * 45)
         print("  1. 📝 新建文章       5. 🗑️ 删除文章")
-        print("  2. 🧹 全站格式校对    6. 🚀 本地预览")
+        print("  2. 🧹 全站格式对齐    6. 🚀 本地预览")
         print("  3. ⚙️  设置中心       7. ☁️ 发布博客")
         print("  4. 🌅 换壁纸中心      8. 📦 手动备份")
         print("  9. 🖼️ 设置文章封面    10. 📌 置顶管理")
+        print("  11. 🚚 搬运文章图片   12. 🧹 Actions 记录清理")
         print("-" * 45 + "\n  Q. 退出\n" + "=" * 45)
 
         c = input("👉 选择: ").strip().lower()
@@ -728,6 +1053,11 @@ def main():
             input("回车继续...")
         elif c == "10":
             manage_pinned_status()
+        elif c == "11":
+            migrate_images_in_posts()
+            input("回车继续...")
+        elif c == "12":
+            actions_cleanup_center()
         else:
             pass
 

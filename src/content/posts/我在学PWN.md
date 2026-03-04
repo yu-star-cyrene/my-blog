@@ -54,6 +54,12 @@ seccomp-tools：检查程序能使用的系统调用	dump：输出	./orw：./+�
 nm：指令	./+程序名
 ```
 
+`chmod +x ./pwn2`
+
+```
+chmod：指令，修改权限	-x：执行的权限	./pwn2：目标文件
+```
+
 
 
 #### `objdump`
@@ -609,10 +615,6 @@ success(f"Libc Base: {hex(libc_base)}")
 p.interactive()
 ```
 
-![image-20260227202406227](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260227202406227.png)
-
-
-
 现在就是在libc里寻找一下orw的偏移，通过objdump命令直接看汇编很快就得到了：
 
 ```
@@ -639,14 +641,6 @@ write_addr = libc_base + 0x10e060
 
 
 
-
-
-
-
-
-
-
-
 ----
 
 
@@ -658,15 +652,8 @@ write_addr = libc_base + 0x10e060
 因为听完了课，感觉这个例题仅仅只是比一半的多了一个字符绕过，其他的知识都相同。
 
 首先通过ida分析程序是会发现一个cmp的比较，它将我们输入的shellcode进行与ascll码比较，从而限制shellcode。
-![image-20260227170339976](C:\Users\G1731\AppData\Roaming\Typora\typora-user-images\image-20260227170339976.png)
 
 使用工具生成可以用的shellcode 然后编码shellcode发生就行了。
-
-
-
----
-
-
 
 
 
@@ -780,8 +767,6 @@ MSB与LSB，假设我们有一串数字1234，我们的起始地址为0x1000
 
 
 ---
-
-
 
 
 
