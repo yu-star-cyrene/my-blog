@@ -34,7 +34,7 @@ leave相当于：
 MOVE	RSP	RBP	；将栈底指针的值赋值给栈顶，直接清空了栈。
 POP	EBP	；这个的作用要讲到在在move之前，程序push	rbp，已经将上一个函数的返回地址存了进去，pop一下，就把这个值弹了出来，然后自身的地址再+8。
 
-![image-20260306204108683](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260306204108683.png)
+![image-20260306204108683](/images/image-20260306204108683.png)
 
 对应到这边ida的图片里，stack，上面为栈顶，地址小也就是低，下面为栈底，地址大也就是高。
 
