@@ -681,6 +681,8 @@ buf = elf.bss()+0x300
 
 利用垃圾数据（`b'a'*0x108`）填充到返回地址，然后接上 `pop_rsp_ret` 以及 `buf` 的地址。程序执行到最后，通过 `pop rsp` 将 CPU 的栈顶指针劫持到 `bss` 段的 `buf` 处。因为此时 `buf` 里已经装满了 ORW ROP 链，所以程序就跑去执行rop，一个一个跳转执行了orw。
 
+##### payload:
+
 ```
 from pwn import *
 
