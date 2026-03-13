@@ -96,8 +96,8 @@ chmod：指令，修改权限	-x：执行的权限	./pwn2：目标文件
 | **指令**                                     | **功能**                                             |
 | -------------------------------------------- | ---------------------------------------------------- |
 | `ROPgadget --binary vuln`                    | 列出程序中所有以 `ret` 结尾的指令片段。              |
-| `ROPgadget --binary vuln --only "pop|ret"`   | 只搜索包含 `pop` 或 `ret` 的指令，快速定位传参零件。 |
 | `ROPgadget --binary vuln --string "/bin/sh"` | 在程序中搜索特定字符串（如 `/bin/sh`）的地址。       |
+| `ROPgadget --binary vuln --only "pop|ret"`   | 只搜索包含 `pop` 或 `ret` 的指令，快速定位传参零件。 |
 | `ROPgadget --binary libc.so.6 --opcode 0f05` | 搜索特定的机器码（如 `0f05` 代表 `syscall`）。       |
 
 
