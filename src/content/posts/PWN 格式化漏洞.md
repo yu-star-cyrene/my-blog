@@ -11,9 +11,9 @@ tags: [PWN]
 
 
 
-![image-20260322185918295](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260322185918295.png)
+![image-20260322185918295](/images/image-20260322185918295.png)
 
-![image-20260322191104783](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260322191104783.png)
+![image-20260322191104783](/images/image-20260322191104783.png)
 
 简单贴个图，作为参考。
 
@@ -21,11 +21,11 @@ tags: [PWN]
 
 通过输入%p之类的格式化字符串，让printf这个函数执行命令，它会去stack寻找参数来打印。
 
-![image-20260322191839709](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260322191839709.png)
+![image-20260322191839709](/images/image-20260322191839709.png)
 
 以一个题目做辅助讲解，这边有个printf(format)，如果我们输入的是AAAA，那程序就自动打印AAAA，可是如果我们输入AAAA.%p.%p.%p.%p.%p.%p.%p.%p.%p，程序就会因为格式化字符串的缘故，在栈帧中依次寻找参数来打印。
 
-![image-20260322192024117](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260322192024117.png)
+![image-20260322192024117](/images/image-20260322192024117.png)
 
 这就是格式化字符串产生的漏洞。
 
@@ -37,7 +37,7 @@ tags: [PWN]
 
 直接在程序中寻找
 
-![image-20260322192730823](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260322192730823.png)
+![image-20260322192730823](/images/image-20260322192730823.png)
 
 可以看见num在程序里面的地址为0x804a030。
 
@@ -47,7 +47,9 @@ payload = p32(0x804a030)+b'%12c%7$n'
 
 通过格式化字符串，以及动态测试，可以知道程序打印出来的第七个参数是我们的输入值，我们让num函数的地址作为打印出来的第一个参数，而后面用%12c补齐数值，地址占4字节加上这个%12c占的12字节，正好是16字节，而后面%7$n的作用就出来，它会让程序去第七个参数，将我们前面的16字节的16读取入第七个参数，这样就完成了num==16。
 
+![image-20260323202713090](/images/image-20260323202713090.png)
 
+这边还有一个%a也常常适用于格式化字符漏洞。
 
 
 
