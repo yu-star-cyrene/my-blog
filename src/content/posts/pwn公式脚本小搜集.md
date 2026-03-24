@@ -155,6 +155,53 @@ context(os='linux', arch='amd64', log_level='debug')
 
 
 
+
+
+# 五.自定义发送函数describe_payload
+
+```
+def describe_payload(name, parts):
+    """
+    打印 payload 分段布局，便于核对偏移。
+    parts: [(字段名, bytes), ...]
+    """
+    off = 0
+    log.info('%s layout:' % name)
+    for field, chunk in parts:
+        end = off + len(chunk) - 1
+        log.info('  [0x%02x..0x%02x] len=%-2d %-18s %r' % (off, end, len(chunk), field, chunk))
+        off += len(chunk)
+    log.info('  total length = 0x%x (%d)' % (off, off))
+```
+
+### 使用方法：
+
+```
+payload_leak_parts = [
+
+  ('pad', leak_pad),
+
+  ('saved_ebp', leak_saved_ebp),
+
+  ('ret=puts@plt', leak_ret),
+
+  ('next=main', leak_next),
+
+  ('arg=puts@got', leak_arg),
+
+  ('newline', leak_nl),
+
+]
+
+payload_leak = b''.join(chunk for _, chunk in payload_leak_parts)
+
+describe_payload('payload_leak', payload_leak_parts)
+```
+
+
+
+
+
 ---
 
 - **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
