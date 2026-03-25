@@ -128,11 +128,13 @@ unsigned int __cdecl sub_80486D9(int a1, int a2)
 
 所以实际上最终我们的letters是255个我们输入的字节加上/0组成。
 
+我去，直接研究成形题目给我干傻了，回归一下底层。
 
 
 
+> https://hello-ctf.com/hc-pwn/Stack_Overflow/#_4
 
-
+探姬师傅，救救我。
 
 
 
