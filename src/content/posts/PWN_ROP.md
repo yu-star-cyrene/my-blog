@@ -365,11 +365,55 @@ p.interactive()
 
 以上仅供参考。
 
+#### 简单讲解：
 
+首先ret2csu的用法极大部分是在不存在pop rdi这个gadget时候使用的。
 
+如果存在那个gadget就不需要这么麻烦了。对应的汇编源码已经在上面了，libc_csu_init。
 
+该函数存在两个gadget以构成我们的rop链。
 
+![image-20260326143854764](/images/image-20260326143854764.png)
 
+这段用来调用函数，成为gadget1。
+
+![image-20260326143920614](/images/image-20260326143920614.png)
+
+这段用来调整寄存器结构，完成调用函数的前置，成为gadget2。
+
+我们payload要先从gadget2开始。
+
+`p32(libc_csu_init_end)`覆盖返回函数进入rop；
+
+`p32(target_ebx)` 这边是通过上面的call指令得到的，看第一个gadget1中的call函数，它实际上是`call [ebx + edi*4 - 0xf8]`，这其实是调用函数的地址，我们通过第二个gadget2控制edi，ebx就是改变本来汇编代码调用的函数。
+
+在这一题中，我们是调用system函数，因为本来的程序中存在binsh的参数，设置edi为0，所以ebx = system_got_ptr + 0xf8，这便是我们想要设置的目标ebx的值；
+
+`payload += p32(1)`
+
+![image-20260326145236582](/images/image-20260326145236582.png)
+
+这边是设置esi的值，本来它是这样的作用，但它其实也可以做为计数器，设置esi为1，保证我们的rop值进行一次，避免多次运行出现难以预测的问题；
+
+`payload += p32(0)`  设置edi为0；`payload += p32(bin_sh_addr)` 设置ebp的值，即帧底的指向，到时候到gadget1时，程序回去看ebp，然后我们的参数就能传入调用函数中；
+
+`payload += p32(libc_csu_init_call)`进入gadget2，开始调用函数；
+
+当程序正常运行后经过三个push，然后调用函数，三个push在栈中压入了三个参数依次为binsh，p32(0x08048360) ，p32(0xdeadbeef)，这是程序汇编代码写好的，强制数据，正常来说，只要保证参数合法，就可以了，我们只是要传binsh给system函数。
+
+```
+payload += b'B' * 4            
+payload += p32(0) * 4          
+payload += p32(0x08048360)      
+```
+
+第一行是为了应付add 16h的指令，本来三次push加sub一共下降了16字节，用add来填补，但真让其填补了，我们后面的所有指令都失败了，由于我们的设置在源码中cmp中，程序不会跳转，如果执行到后面的pop指令时，我们stack中的数据乱了，那就会崩溃。
+
+这边主要就是保证程序后续顺利进行。
+
+> https://gemini.google.com/share/2a07b79affc8
+
+借助ai理解。
 
 
 
@@ -455,6 +499,8 @@ p.interactive()
 ```
 
 #### 积累：
+
+ 通过泄露的puts地址用libcsearch寻找libc版本
 
 ```
 puts_addr = leak_puts()
