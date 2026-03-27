@@ -1,8 +1,32 @@
 ---
 import { musicPlayerConfig } from "@/config/musicConfig";
 import { url } from "@/utils/url-utils";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const config = musicPlayerConfig;
+const isFullUrl = (path: string): boolean => /^https?:\/\//.test(path);
+const looksLikeLocalPath = (path: string): boolean =>
+	/^(\/|\.\/|\.\.\/)/.test(path) || /\.(lrc|txt)($|[?#])/i.test(path);
+
+const resolveLrc = (lrc?: string): string | undefined => {
+	if (!lrc) return undefined;
+	if (isFullUrl(lrc)) return lrc;
+
+	// Keep inline lyric text only for non-async lyric modes.
+	if (!looksLikeLocalPath(lrc)) {
+		return (config.player?.lrcType ?? 0) === 3 ? undefined : lrc;
+	}
+
+	// In async lyric mode, missing local files should silently fall back to no-lyrics.
+	if ((config.player?.lrcType ?? 0) === 3) {
+		const normalizedPath = (lrc.split("?")[0]?.split("#")[0] ?? lrc).replace(/^\/+/, "");
+		const absolutePath = join(process.cwd(), "public", normalizedPath);
+		if (!existsSync(absolutePath)) return undefined;
+	}
+
+	return url(lrc);
+};
 
 // 预先生成本地资源路径，确保在非根目录部署时也能正确加载
 const aplayerCssPath = url("/assets/css/APlayer.min.css");
@@ -23,11 +47,6 @@ const metingJsPath = config.meting?.jsPath
 const processedLocalPlaylist =
 	config.mode === "local" && config.local?.playlist
 		? config.local.playlist.map((song) => {
-				// 辅助函数：判断是否为完整 URL
-				const isFullUrl = (path: string): boolean => {
-					return /^https?:\/\//.test(path);
-				};
-
 				return {
 					...song,
 					// 仅对相对路径使用 url() 处理，完整 URL 直接使用
@@ -37,6 +56,8 @@ const processedLocalPlaylist =
 							? song.cover
 							: url(song.cover)
 						: undefined,
+					// Keep no-lyrics mode when lyric path is empty or unavailable.
+					lrc: resolveLrc(song.lrc),
 				};
 			})
 		: null;
@@ -445,16 +466,17 @@ const processedLocalPlaylist =
         artist: song.artist,
         url: song.url,
         cover: song.cover,
-        lrc: song.lrc,
+        lrc: song.lrc || undefined,
         type: "auto",
       }));
+      const hasLyrics = audioList.some((song) => typeof song.lrc === "string" && song.lrc.trim().length > 0);
 
       try {
         const aplayer = new APlayerClass({
           container,
           audio: audioList,
           mutex: config.player?.mutex !== false,
-          lrcType: config.player?.lrcType ?? 0,
+          lrcType: hasLyrics ? (config.player?.lrcType ?? 0) : 0,
           fixed: config.player?.fixed ?? true,
           mini: config.player?.mini ?? true,
           autoplay: config.player?.autoplay || false,
@@ -544,4 +566,3 @@ const processedLocalPlaylist =
     display: none !important;
   }
 </style>
-
