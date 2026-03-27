@@ -5,7 +5,7 @@ export const announcementConfig: AnnouncementConfig = {
 	title: "公告",
 
 	// 公告内容
-	content: "一个专注于学习的网络小白",
+	content: "由于一些个人因素，最终还是回到了web上面，加油吧。",
 
 	// 是否允许用户关闭公告
 	closable: true,

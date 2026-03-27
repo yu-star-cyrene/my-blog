@@ -1,7 +1,7 @@
 ---
 title: "WEB绕过类"
 image: '/images/139930056_p0_master1200.jpg'
-pinned: true
+pinned: false
 comment: true
 published: 2026-01-16
 description: "web学习"

@@ -184,13 +184,50 @@ def auto_fix_corrupted_config():
 
 # ==================== 📚 文章扫描 ====================
 
+DEFAULT_CATEGORY = "刷题"
+
+def normalize_category(category: str) -> str:
+    cat = (category or "").strip()
+    return cat or DEFAULT_CATEGORY
+
+def get_post_rel_path(p: Path) -> str:
+    try:
+        return p.relative_to(S.posts_dir).as_posix()
+    except Exception:
+        return p.name
+
+def get_category_dir(category: str) -> Path:
+    return S.posts_dir / normalize_category(category)
+
+def ensure_unique_post_path(target: Path) -> Path:
+    if not target.exists():
+        return target
+    stamp = now_stamp()
+    candidate = target.with_name(f"{target.stem}_{stamp}{target.suffix}")
+    i = 1
+    while candidate.exists():
+        candidate = target.with_name(f"{target.stem}_{stamp}_{i}{target.suffix}")
+        i += 1
+    return candidate
+
+def relocate_post_by_category(post_path: Path, category: str) -> Path:
+    dst_dir = get_category_dir(category)
+    ensure_dir(dst_dir)
+    if post_path.parent == dst_dir:
+        return post_path
+    dst = dst_dir / post_path.name
+    if dst.exists():
+        dst = ensure_unique_post_path(dst)
+    shutil.move(str(post_path), str(dst))
+    return dst
+
 def get_all_posts():
     posts = []
     if S.posts_dir.exists():
         for p in S.posts_dir.rglob("*"):
             if p.is_file() and p.suffix.lower() in {".md", ".mdx"}:
-                posts.append({"name": p.name, "path": p})
-    posts.sort(key=lambda x: x["name"].lower())
+                posts.append({"name": p.name, "path": p, "rel": get_post_rel_path(p)})
+    posts.sort(key=lambda x: x["rel"].lower())
     return posts
 
 def get_post_title_from_file(p: Path) -> str:
@@ -215,13 +252,13 @@ def refresh_categories():
         try:
             meta, _, has_fm = parse_frontmatter(read_text(p["path"]))
             cat = (meta.get("category") or "").strip() if has_fm else ""
-            cat = cat or "刷题"
+            cat = normalize_category(cat)
             counts[cat] = counts.get(cat, 0) + 1
         except:
-            counts["刷题"] = counts.get("刷题", 0) + 1
+            counts[DEFAULT_CATEGORY] = counts.get(DEFAULT_CATEGORY, 0) + 1
 
     CATEGORY_COUNTS = dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
-    S.categories = list(CATEGORY_COUNTS.keys()) if CATEGORY_COUNTS else ["刷题"]
+    S.categories = list(CATEGORY_COUNTS.keys()) if CATEGORY_COUNTS else [DEFAULT_CATEGORY]
 
 # ==================== 📦 备份模块 ====================
 
@@ -273,9 +310,9 @@ def manage_pinned_status():
                 c = read_text(p["path"])
                 is_p = "[置顶]" if re.search(r"(?m)^\s*pinned:\s*true\s*$", c) else "[普通]"
                 title = get_post_title_from_file(p["path"])
-                print(f"{i+1:<4} | {is_p:<6} | {title} ({p['name']})")
+                print(f"{i+1:<4} | {is_p:<6} | {title} ({p['rel']})")
             except:
-                print(f"{i+1:<4} | {'[?]':<6} | {p['name']}")
+                print(f"{i+1:<4} | {'[?]':<6} | {p['rel']}")
 
         c = input("\n👉 输入序号切换 (0返回): ").strip()
         if c == "0" or not c:
@@ -356,7 +393,7 @@ def set_post_cover():
 
     print("\n=== 🖼️ 设置文章封面 ===")
     for i, p in enumerate(posts):
-        print(f"{i+1}. {get_post_title_from_file(p['path'])} ({p['name']})")
+        print(f"{i+1}. {get_post_title_from_file(p['path'])} ({p['rel']})")
 
     c = input("\n👉 选择序号 (0返回): ").strip()
     if c == "0" or not c:
@@ -460,12 +497,13 @@ def process_posts(mode="format"):
         cat_c = input("👉 选择: ").strip()
 
         if cat_c == "0":
-            category = input("👉 新分类名: ").strip() or "刷题"
+            category = input("👉 新分类名: ").strip() or DEFAULT_CATEGORY
             if category not in S.categories:
                 S.categories.append(category)
         else:
             idx = safe_int(cat_c, 1) - 1
-            category = S.categories[idx] if 0 <= idx < len(S.categories) else "刷题"
+            category = S.categories[idx] if 0 <= idx < len(S.categories) else DEFAULT_CATEGORY
+        category = normalize_category(category)
 
         pinned = "true" if input("👉 是否置顶? (y/n): ").strip().lower() == "y" else "false"
 
@@ -474,7 +512,9 @@ def process_posts(mode="format"):
             img = pick_image_ui()
 
         safe_name = re.sub(r'[\\/:*?"<>|]', "_", t).strip()
-        p = S.posts_dir / f"{safe_name}.md"
+        post_dir = get_category_dir(category)
+        ensure_dir(post_dir)
+        p = ensure_unique_post_path(post_dir / f"{safe_name}.md")
 
         template = (
             "---\n"
@@ -492,7 +532,7 @@ def process_posts(mode="format"):
         final = standardize_frontmatter(template, t)
         final = ensure_copyright_once(final)  # ✅ 只加一次
         write_text_if_changed(p, final)
-        print(f"✅ 《{t}》创建成功！")
+        print(f"✅ 《{t}》创建成功：{get_post_rel_path(p)}")
         return
 
     # ========== 全站格式对齐（不搬运图片！不重复加版权！） ==========
@@ -503,6 +543,9 @@ def process_posts(mode="format"):
         content = standardize_frontmatter(content, get_post_title_from_file(p["path"]))
         content = ensure_copyright_once(content)  # ✅ 没有才加
         write_text_if_changed(p["path"], content)
+        meta, _, has_fm = parse_frontmatter(content)
+        category = normalize_category(meta.get("category", "") if has_fm else "")
+        relocate_post_by_category(p["path"], category)
     print("✅ 全站格式对齐完成。")
     refresh_categories()
 
@@ -517,7 +560,7 @@ def delete_post():
     clear_screen()
     print("\n=== 🗑️ 删除文章 ===")
     for i, p in enumerate(posts):
-        print(f"{i+1}. {get_post_title_from_file(p['path'])} ({p['name']})")
+        print(f"{i+1}. {get_post_title_from_file(p['path'])} ({p['rel']})")
     c = input("\n👉 选择序号删除 (0返回): ").strip()
     if c == "0" or not c:
         return

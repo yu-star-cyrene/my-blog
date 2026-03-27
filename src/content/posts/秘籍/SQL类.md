@@ -1,7 +1,7 @@
 ---
 title: "SQL类"
 image: '/images/138311505_p0_master1200.jpg'
-pinned: true
+pinned: false
 comment: true
 published: 2025-12-21
 description: "sql学习"

