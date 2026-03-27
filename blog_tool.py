@@ -715,7 +715,17 @@ def run_dev():
 # ==================== ☁️ 发布（修复：无改动但 ahead 也会 push；push 不 capture） ====================
 
 def run_cmd_capture(cmd, cwd=None):
-    return subprocess.run(cmd, check=False, capture_output=True, text=True, cwd=cwd or str(S.base_dir))
+    # Windows + Git output may contain UTF-8 bytes that cannot be decoded by GBK.
+    # Force UTF-8 with replacement to avoid UnicodeDecodeError crashing deploy flow.
+    return subprocess.run(
+        cmd,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=cwd or str(S.base_dir),
+    )
 
 def has_git_changes() -> bool:
     try:
