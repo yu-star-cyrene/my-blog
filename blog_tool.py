@@ -715,17 +715,25 @@ def run_dev():
 # ==================== ☁️ 发布（修复：无改动但 ahead 也会 push；push 不 capture） ====================
 
 def run_cmd_capture(cmd, cwd=None):
-    # Windows + Git output may contain UTF-8 bytes that cannot be decoded by GBK.
-    # Force UTF-8 with replacement to avoid UnicodeDecodeError crashing deploy flow.
-    return subprocess.run(
+    # Always capture raw bytes and decode ourselves.
+    # This avoids Python's locale-dependent text decoding (e.g. GBK) from throwing
+    # UnicodeDecodeError in subprocess reader threads on Windows.
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    r = subprocess.run(
         cmd,
         check=False,
         capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
+        text=False,
         cwd=cwd or str(S.base_dir),
+        env=env,
     )
+
+    stdout = r.stdout.decode("utf-8", errors="replace") if isinstance(r.stdout, (bytes, bytearray)) else str(r.stdout or "")
+    stderr = r.stderr.decode("utf-8", errors="replace") if isinstance(r.stderr, (bytes, bytearray)) else str(r.stderr or "")
+    return subprocess.CompletedProcess(r.args, r.returncode, stdout, stderr)
 
 def has_git_changes() -> bool:
     try:
@@ -751,6 +759,8 @@ def git_push_main_interactive() -> int:
     env.pop("GIT_ASKPASS", None)
     env.pop("SSH_ASKPASS", None)
     env["GIT_TERMINAL_PROMPT"] = "1"
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
 
     # 不 capture_output，让 git 走正常凭据弹窗/输入
     r = subprocess.run(
