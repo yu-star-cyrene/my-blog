@@ -1,22 +1,10 @@
 ---
-title: ""
-image: ''
-pinned: false
-comment: true
-published: 2026-04-16
-updated: 2026-04-16
-description: ""
-category: 刷题
-tags: [刷题]
----
-
-﻿---
 title: "nssctf学习中"
 image: '/images/133301699_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-11-11
-updated: 2025-11-11
+updated: 2026-04-16
 description: "刷题"
 category: 刷题
 tags: [刷题]
@@ -1228,11 +1216,31 @@ if(isset($a)&&(file_get_contents($a,'r')) === 'I want flag'){
 
 
 
-# #16.
+# #16.[LitCTF 2023]Follow me and hack me
 
 
 
+![image-20260416192732537](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260416192732537.png)
 
+简单入门题，不讲不讲。
+
+
+
+# #17.[SWPUCTF 2021 新生赛]no_wakeup
+
+如题名。
+
+绕过 `__wakeup` 就行，利用一个漏洞。
+
+![image-20260416192901087](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260416192901087.png)
+
+
+
+---
+
+
+
+# #18.
 
 
 
