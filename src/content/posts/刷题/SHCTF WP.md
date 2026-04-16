@@ -958,7 +958,7 @@ c = 4557192604704814579224198928010541193712311907197292139423304635523945088581
 
 > 引用文章：[维纳攻击 wiener attack - 明客 - 博客园](https://www.cnblogs.com/wandervogel/p/16805992.html)
 
-关键点为：当 $d < \frac{1}{3} n^{1/4}$ 时，可以通过 $e/n$ 的连分数展开来恢复私钥 $d$。
+关键点为：当 $d < \frac{1}{3} n^{1/4}$ 时，可以通过 $e/n$ 的连分数展开来恢复私钥 $d$
 
 ![image-20260210231235817](/images/image-20260210231235817.png)
 
@@ -1271,7 +1271,7 @@ $$N = p \times q = (\frac{p+q}{2})^2 - (\frac{p-q}{2})^2$$
 
 令 $a = \frac{p+q}{2} \approx \sqrt{N}$，则 $N = a^2 - b^2$
 
-可以从 $\sqrt{N}$ 开始向上遍历寻找 $a$，使得 $a^2 - N$ 是一个完全平方数，快速分解 $N$。
+可以从 $\sqrt{N}$ 开始向上遍历寻找 $a$，使得 $a^2 - N$ 是一个完全平方数，快速分解 $N$
 
 题目有hint：并不是所有的题目都是8位哦。
 
@@ -1412,7 +1412,7 @@ if __name__ == "__main__":
 
 $$b = (\text{popcount}(n \ \& \ \text{key}) \pmod 3) \pmod 2$$
 
-当 $b = 1$ 时，有 $\text{popcount}(n \ \& \ \text{key}) \equiv 1 \pmod 3$。可以将 $n$ 展开为 128 位的二进制向量：
+当 $b = 1$ 时，有 $\text{popcount}(n \ \& \ \text{key}) \equiv 1 \pmod 3$，可以将 $n$ 展开为 128 位的二进制向量：
 
 $$n_0k_0 + n_1k_1 + \dots + n_{127}k_{127} \equiv 1 \pmod 3$$
 
@@ -1821,7 +1821,7 @@ data_write(p, h)
 
 题目生成了一个 $1 \times n$ 的私钥矩阵 $x$，以及一个 $n \times m$ 的矩阵 $A$（元素取值为 0, 1, 2。
 
-给出的公钥 $h = x \cdot A \pmod p$。
+给出的公钥为 $h = x \cdot A \pmod p$
 
 矩阵 $A$ 的其中一行被替换成了 Flag 的二进制流。
 
@@ -1988,7 +1988,7 @@ $end = secret + 21 \cdot p$
 
 因此 $p = (end - start) / 40$，求出 $p$ 后，带回原式即可直接得到 flag：
 
-$secret = start + 19 \cdot p$。
+因此可得 $secret = start + 19 \cdot p$
 
 感觉是非预期解，因为太简单了。
 
@@ -2142,7 +2142,7 @@ MkZkbDg3ZlY3ZEQxalNGenQyZUFYT3E0NmRrTXFV	 Base64 -> Base62 -> Base58 -> Base32�
 
 ```
 抓取中
-VM228:9 [发现目标]: <strong class=​"find">​  ​</strong>​
+VM228:9 [发现目标]: <strong class="find">  </strong>
 VM228:10 [原始文本]:   
 VM228:11 [unicode编码]: 0x20, 0xe130, 0xec35, 0xed5d, 0xf777, 0xf348, 0xefab, 0xf5be, 0xe250, 0xe0f0, 0xf531, 0xeddc, 0xece1, 0xe0f0, 0xe08b, 0xf0e3, 0xe4fb, 0xed4d, 0xe0f0, 0xeddc, 0xf531, 0xe0f0, 0xe082, 0xe5af, 0xf32c, 0x20
 ```
@@ -2460,9 +2460,9 @@ print(f"Flag:{flag.decode()}")
 
 每一轮的执行顺序由内部的 `e-z-e-z-e-z-r-e` 决定：
 
-- **F 函数**：$F(v) = (v + (ROL(v, 5) \oplus ROL(v, 13))) \pmod{2^{32}}$。
-- **e **：将当前侧数据与 F 的另一侧进行异或，并且叠加轮密钥 $K$。
-- **z **：根据位移按数组 $S$ 进行动态循环移位：$ROL(Data, (S[i] \oplus \text{另一侧}) \& 0x1F)$。
+- **F 函数**：$F(v) = (v + (ROL(v, 5) \oplus ROL(v, 13))) \pmod{2^{32}}$
+- **e **：将当前侧数据与 F 的另一侧进行异或，并且叠加轮密钥 $K$
+- **z **：根据位移按数组 $S$ 进行动态循环移位：$ROL(Data, (S[i] \oplus \text{另一侧}) \& 0x1F)$
 - **r **：每 3 轮执行一次左右半部分数据交换。
 
 **2. 动态常量生成 **
@@ -2542,11 +2542,11 @@ print(f"Flag: {full_flag.decode('ascii', errors='ignore')}")
 
 `main` 函数中通过一个循环读取两次输入：
 
-使用 `scanf("%d")` 读取，并检查输入是否 $\leq 9$。如果输入大于 9，程序直接退出。
+使用 `scanf("%d")` 读取，并检查输入是否满足 $\leq 9$；如果输入大于 9，程序直接退出。
 
 由于检查使用的是有符号比较（`jle`），可以通过输入负数绕过限制。
 
-变量 `var_11` 在栈上只有8字节，范围为$0 \sim 255$。
+变量 `var_11` 在栈上只有8字节，范围为 $0 \sim 255$
 
 通过输入 `-156 `可以触发 8 位整数溢出，从而进入 `backdoor`。
 

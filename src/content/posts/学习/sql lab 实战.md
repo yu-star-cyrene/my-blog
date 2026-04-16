@@ -323,7 +323,7 @@ Your Password:Dumb-I-kill-you-p@ssword-crappy-stupidity-genious-mob!le-admin-adm
 
 ![alt text](/images/QQ20251227-182352.png)
 
-​	其实看到第四关的描述，我感觉就是报错注入的类型。
+其实看到第四关的描述，我感觉就是报错注入的类型。
 
 事不宜迟，试一试。
 

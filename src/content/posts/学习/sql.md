@@ -653,7 +653,7 @@ SELECT * FROM users WHERE uname = 'admin'; select sleep(5); --+'
 
 定义： Quine 是指一个输出结果等于其自身源代码的程序。
 
-应用场景： 当后端代码逻辑为 if ($password === $row['password'])，而你不知道数据库里的密码时，通过注入让数据库 现场生成 一个和你输入的 Payload 完全一致的字符串，从而通过验证。
+应用场景： 当后端代码逻辑为 `if ($password === $row['password'])`，而你不知道数据库里的密码时，通过注入让数据库现场生成一个和你输入的 Payload 完全一致的字符串，从而通过验证。
 
 ------
 

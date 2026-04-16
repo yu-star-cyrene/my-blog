@@ -202,7 +202,7 @@ $$
 如果	Base = 0, Index = 2, Scale = 4, Displacement = 0x10 (16)。
 
 $$
-0 + (2 \times 4) + 16 = 24。
+0 + (2 \times 4) + 16 = 24
 $$
 计算出偏移地址(offset)为 24。
 

