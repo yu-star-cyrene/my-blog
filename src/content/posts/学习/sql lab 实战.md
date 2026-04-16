@@ -4,6 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2025-12-25
+updated: 2026-04-16
 description: "sql学习"
 category: 学习
 tags: [学习]

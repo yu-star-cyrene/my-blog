@@ -3,21 +3,38 @@ import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import { getCategoryUrl } from "@utils/url-utils";
 
-// // Retrieve posts and sort them by publication date
+function getEffectivePostOrderTime(
+	data: Pick<CollectionEntry<"posts">["data"], "published" | "updated">,
+) {
+	return new Date(data.updated ?? data.published).getTime();
+}
+
+// Retrieve posts and sort them by pinned status and effective modified date
 async function getRawSortedPosts() {
 	const allBlogPosts = await getCollection("posts", ({ data }) => {
 		return import.meta.env.PROD ? data.draft !== true : true;
 	});
 
 	const sorted = allBlogPosts.sort((a, b) => {
-		// 首先按置顶状态排序，置顶文章在前
+		// Keep pinned posts at the top.
 		if (a.data.pinned && !b.data.pinned) return -1;
 		if (!a.data.pinned && b.data.pinned) return 1;
 
-		// 如果置顶状态相同，则按发布日期排序
-		const dateA = new Date(a.data.published);
-		const dateB = new Date(b.data.published);
-		return dateA > dateB ? -1 : 1;
+		// Non-pinned posts follow the effective modified time.
+		const orderTimeA = getEffectivePostOrderTime(a.data);
+		const orderTimeB = getEffectivePostOrderTime(b.data);
+		if (orderTimeA !== orderTimeB) {
+			return orderTimeB - orderTimeA;
+		}
+
+		// Keep ordering stable when the effective modified time is the same.
+		const publishedTimeA = new Date(a.data.published).getTime();
+		const publishedTimeB = new Date(b.data.published).getTime();
+		if (publishedTimeA !== publishedTimeB) {
+			return publishedTimeB - publishedTimeA;
+		}
+
+		return a.id.localeCompare(b.id);
 	});
 	return sorted;
 }

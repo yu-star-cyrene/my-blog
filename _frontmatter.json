@@ -36,6 +36,12 @@
           "isPublishDate": true
         },
         {
+          "title": "updated",
+          "name": "updated",
+          "type": "datetime",
+          "default": "{{now}}"
+        },
+        {
           "title": "preview",
           "name": "image",
           "type": "image",

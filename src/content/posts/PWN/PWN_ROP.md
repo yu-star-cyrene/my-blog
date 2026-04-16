@@ -4,6 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2026-03-04
+updated: 2026-04-16
 description: "PWN"
 category: PWN
 tags: [PWN]
@@ -528,4 +529,3 @@ binsh_addr  = libc_base + libc.dump('str_bin_sh')
 ---
 
 - **版权声明**：本文由 **余林阳** 创作，转载请注明出处。
-

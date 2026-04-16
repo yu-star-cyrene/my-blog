@@ -4,14 +4,11 @@ image: ''
 pinned: false
 comment: true
 published: 2026-03-22
+updated: 2026-04-16
 description: "PWN"
 category: PWN
 tags: [PWN]
 ---
-
-
-
-
 
 说来忏愧，直接整数溢出我是会的，直接canary，pie绕过我回的，直接ret2libc之类的我也会。
 

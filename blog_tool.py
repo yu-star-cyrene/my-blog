@@ -76,6 +76,8 @@ def write_text_if_changed(p: Path, content: str):
     old = p.read_text(encoding="utf-8") if p.exists() else ""
     if old != content:
         p.write_text(content, encoding="utf-8")
+        return True
+    return False
 
 def safe_int(s: str, default: int = 0) -> int:
     try:
@@ -88,6 +90,12 @@ def now_date() -> str:
 
 def now_stamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+def file_modified_date(p: Path) -> str:
+    try:
+        return datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y-%m-%d")
+    except Exception:
+        return now_date()
 
 # ==================== 🧾 Frontmatter 解析/写回（稳） ====================
 
@@ -134,6 +142,7 @@ def standardize_frontmatter(content: str, default_title: str = "") -> str:
     pinned = "true" if truthy(meta.get("pinned", "false")) else "false"
     comment = "false" if str(meta.get("comment", "true")).strip().lower() == "false" else "true"
     published = meta.get("published", now_date()).strip() or now_date()
+    updated = meta.get("updated", published).strip() or published
     description = meta.get("description", title).strip() or title
     category = meta.get("category", "刷题").strip() or "刷题"
     tags = normalize_tags(meta.get("tags", ""), category)
@@ -145,6 +154,7 @@ def standardize_frontmatter(content: str, default_title: str = "") -> str:
         f"pinned: {pinned}\n"
         f"comment: {comment}\n"
         f"published: {published}\n"
+        f"updated: {updated}\n"
         f'description: "{description}"\n'
         f"category: {category}\n"
         f"tags: {tags}\n"
@@ -238,6 +248,54 @@ def get_post_title_from_file(p: Path) -> str:
     except:
         pass
     return p.stem
+
+def get_changed_post_paths():
+    changed = set()
+    commands = [
+        ["git", "-c", "core.quotePath=false", "diff", "--name-only", "--cached", "--", "src/content/posts"],
+        ["git", "-c", "core.quotePath=false", "diff", "--name-only", "--", "src/content/posts"],
+        ["git", "-c", "core.quotePath=false", "ls-files", "--others", "--exclude-standard", "--", "src/content/posts"],
+    ]
+
+    for cmd in commands:
+        try:
+            r = run_cmd_capture(cmd)
+        except Exception:
+            continue
+        if r.returncode != 0:
+            continue
+
+        for line in r.stdout.splitlines():
+            rel = line.strip().replace("\\", "/")
+            if not rel or not rel.lower().endswith((".md", ".mdx")):
+                continue
+            changed.add((S.base_dir / rel).resolve())
+
+    return sorted(changed, key=lambda p: str(p).lower())
+
+def sync_updated_dates_for_changed_posts():
+    synced = []
+
+    for post_path in get_changed_post_paths():
+        if not post_path.exists():
+            continue
+
+        content = read_text(post_path)
+        meta, _, has_fm = parse_frontmatter(content)
+        if not has_fm:
+            continue
+
+        published = meta.get("published", now_date()).strip() or now_date()
+        current_updated = meta.get("updated", published).strip() or published
+        target_updated = file_modified_date(post_path)
+        if current_updated == target_updated:
+            continue
+
+        newc = update_frontmatter_field(content, "updated", target_updated)
+        if write_text_if_changed(post_path, newc):
+            synced.append(get_post_rel_path(post_path))
+
+    return synced
 
 # ==================== 🏷️ 分类自动读取（你要的核心） ====================
 
@@ -337,6 +395,7 @@ def manage_pinned_status():
             temp.append("---\n")
             temp.append(body)
             newc = standardize_frontmatter("\n".join(temp), get_post_title_from_file(p_path))
+            newc = update_frontmatter_field(newc, "updated", now_date())
             write_text_if_changed(p_path, newc)
 
             print("✅ 状态已切换。")
@@ -410,6 +469,7 @@ def set_post_cover():
     p_path = posts[idx]["path"]
     content = read_text(p_path)
     newc = update_frontmatter_field(content, "image", img)
+    newc = update_frontmatter_field(newc, "updated", now_date())
     write_text_if_changed(p_path, newc)
     print("✅ 封面已更新。")
 
@@ -454,6 +514,7 @@ def migrate_images_in_posts():
                     total_copied += 1
 
         if changed:
+            content = update_frontmatter_field(content, "updated", now_date())
             write_text_if_changed(path, content)
 
     print(f"✅ 搬运完成：匹配到 {total_hits} 处，本次成功搬运 {total_copied} 张。")
@@ -523,6 +584,7 @@ def process_posts(mode="format"):
             f"pinned: {pinned}\n"
             "comment: true\n"
             f"published: {now_date()}\n"
+            f"updated: {now_date()}\n"
             f'description: "{desc}"\n'
             f"category: {category}\n"
             f"tags: [{category}]\n"
@@ -772,6 +834,12 @@ def git_push_main_interactive() -> int:
     return r.returncode
 
 def run_deploy():
+    synced_posts = sync_updated_dates_for_changed_posts()
+    if synced_posts:
+        print("\n🕒 已同步以下文章的 updated 到最近修改日期：")
+        for rel in synced_posts:
+            print(f"  - {rel}")
+
     run_backup()
 
     changed = has_git_changes()

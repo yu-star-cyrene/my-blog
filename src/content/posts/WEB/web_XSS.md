@@ -4,12 +4,11 @@ image: ''
 pinned: false
 comment: true
 published: 2026-03-26
+updated: 2026-04-16
 description: "WEB"
 category: WEB
 tags: [WEB]
 ---
-
-
 
 > https://hello-ctf.com/hc-web/xss/#reflected-xss
 

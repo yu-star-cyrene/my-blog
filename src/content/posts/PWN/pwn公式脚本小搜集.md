@@ -4,12 +4,11 @@ image: ''
 pinned: false
 comment: true
 published: 2026-03-21
+updated: 2026-04-16
 description: "pwn"
 category: PWN
 tags: [PWN]
 ---
-
-
 
 # 一.通过libcsearch确认libc版本
 

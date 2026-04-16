@@ -9,7 +9,6 @@ import {
     getTagList,
 } from "@/utils/content-utils";
 import WidgetLayout from "./WidgetLayout.astro";
-import fs from 'node:fs';
 
 interface Props {
     class?: string;
@@ -45,19 +44,9 @@ function formatNumber(num: number): string {
     return num.toLocaleString();
 }
 
-// [修改逻辑] 遍历所有文章，取“published日期”与“文件物理修改日期”中的最大值
+// Keep the widget aligned with the post ordering logic.
 const activityTimestamps = posts.map(post => {
-    const pubTime = post.data.published.getTime();
-    try {
-        const baseDir = "src/content/posts/";
-        const mdPath = `${baseDir}${post.id}.md`;
-        const mdxPath = `${baseDir}${post.id}.mdx`;
-        const actualPath = fs.existsSync(mdPath) ? mdPath : mdxPath;
-        const stats = fs.statSync(actualPath);
-        return Math.max(pubTime, stats.mtimeMs);
-    } catch (e) {
-        return pubTime;
-    }
+    return (post.data.updated ?? post.data.published).getTime();
 });
 
 const finalLastActivityTime = activityTimestamps.length > 0 
