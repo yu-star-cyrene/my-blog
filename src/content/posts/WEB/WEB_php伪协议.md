@@ -4,13 +4,11 @@ image: ''
 pinned: false
 comment: true
 published: 2026-04-16
-updated: 2026-04-16
+updated: 2026-04-18
 description: "php伪协议"
 category: WEB
 tags: [WEB]
 ---
-
-
 
 **使用前提的配置文件：**
 
@@ -153,7 +151,7 @@ tags: [WEB]
 
 
 
-### 4. CT猜测
+### 4. 猜测
 
 1. **现代 PHP 版本默认关闭：** 在 PHP 5.2 之后，`allow_url_include` 默认就是 Off 的。除非出题人为了考 `http://` 或 `data://` 伪协议故意把它打开，否则默认当它关闭处理。
 2. **题目暗示：** 如果题目明显过滤了 `php://` 或者本地路径的关键字，暗示你必须用外部请求，那出题人肯定偷偷开了 `allow_url_include`。
