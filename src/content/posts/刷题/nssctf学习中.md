@@ -4,7 +4,7 @@ image: '/images/133301699_p0_master1200.jpg'
 pinned: false
 comment: true
 published: 2025-11-11
-updated: 2026-04-18
+updated: 2026-04-19
 description: "刷题"
 category: 刷题
 tags: [刷题]
@@ -1364,7 +1364,7 @@ if (isset($_GET['show_source'])) {    highlight_file(basename($_SERVER['PHP_SELF
 学习：
 
 ```
-案例网址：https://www.shawroot.cc/php/index.php/test/foo?username=root
+https://www.shawroot.cc/php/index.php/test/foo?username=root
 $_SERVER['PHP_SELF'] 	得到：/php/index.php/test/foo
 $_SERVER['REQUEST_URI'] 得到：/php/index.php/test/foo?username=root
 ```
@@ -1432,7 +1432,7 @@ basename($_SERVER['PHP_SELF']) 就可以返回文件 utils.php
 
 
 
-
+# #21.
 
 
 
