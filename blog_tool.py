@@ -56,6 +56,7 @@ S = Settings()
 IS_WIN = os.name == "nt"
 
 IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+SESSION_GITHUB_TOKEN = None
 
 # ==================== 🧱 基础工具 ====================
 
@@ -797,6 +798,16 @@ def run_cmd_capture(cmd, cwd=None):
     stderr = r.stderr.decode("utf-8", errors="replace") if isinstance(r.stderr, (bytes, bytearray)) else str(r.stderr or "")
     return subprocess.CompletedProcess(r.args, r.returncode, stdout, stderr)
 
+def get_gh_cli_token() -> str:
+    try:
+        r = run_cmd_capture(["gh", "auth", "token"])
+    except Exception:
+        return ""
+
+    if r.returncode != 0:
+        return ""
+    return (r.stdout or "").strip()
+
 def has_git_changes() -> bool:
     try:
         r = run_cmd_capture(["git", "status", "--porcelain"])
@@ -894,11 +905,39 @@ def get_github_token() -> str:
     优先读环境变量：GITHUB_TOKEN / GH_TOKEN
     否则安全输入（不回显）
     """
+    global SESSION_GITHUB_TOKEN
+
+    if SESSION_GITHUB_TOKEN and SESSION_GITHUB_TOKEN.strip():
+        return SESSION_GITHUB_TOKEN.strip()
+
     tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if tok and tok.strip():
-        return tok.strip()
+        SESSION_GITHUB_TOKEN = tok.strip()
+        return SESSION_GITHUB_TOKEN
     print("\n⚠️ 需要 GitHub Token 才能操作 Actions 记录（建议设置环境变量 GITHUB_TOKEN）。")
     return getpass.getpass("👉 请输入 Token（不会回显）：").strip()
+
+def resolve_github_token() -> str:
+    global SESSION_GITHUB_TOKEN
+
+    if SESSION_GITHUB_TOKEN and SESSION_GITHUB_TOKEN.strip():
+        return SESSION_GITHUB_TOKEN.strip()
+
+    tok = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if tok and tok.strip():
+        SESSION_GITHUB_TOKEN = tok.strip()
+        return SESSION_GITHUB_TOKEN
+
+    tok = get_gh_cli_token()
+    if tok:
+        SESSION_GITHUB_TOKEN = tok
+        print("\n✅ 已自动复用当前 gh 登录态，无需手动输入 Token。")
+        time.sleep(0.8)
+        return SESSION_GITHUB_TOKEN
+
+    tok = get_github_token().strip()
+    SESSION_GITHUB_TOKEN = tok
+    return SESSION_GITHUB_TOKEN
 
 def gh_request(method: str, path: str, token: str, params: dict | None = None):
     base = "https://api.github.com"
@@ -973,7 +1012,7 @@ def actions_cleanup_center():
         time.sleep(1.5)
         return
 
-    token = get_github_token()
+    token = resolve_github_token()
     if not token:
         print("❌ 没有 token，已取消。")
         time.sleep(1.2)
