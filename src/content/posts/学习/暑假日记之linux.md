@@ -4,7 +4,7 @@ image: ''
 pinned: false
 comment: true
 published: 2026-07-20
-updated: 2026-07-22
+updated: 2026-07-23
 description: "linux学习"
 category: 学习
 tags: [学习]
@@ -16,7 +16,7 @@ tags: [学习]
 
 
 
-## 1.
+## 1.输出echo
 
 ![image-20260720153802898](/images/image-20260720153802898.png)
 
@@ -34,7 +34,7 @@ echo:输出内容
 
 
 
-## 2.
+## 2.$(指令)
 
 ![image-20260720154355114](/images/image-20260720154355114.png)
 
@@ -49,7 +49,7 @@ $(命令) 是命令替换，会先执行括号内的命令，再将结果替换�
 
 
 
-## 3.
+## 3.help
 
 ![image-20260720155047096](/images/image-20260720155047096.png)
 
@@ -64,7 +64,7 @@ $(命令) 是命令替换，会先执行括号内的命令，再将结果替换�
 
 
 
-## 4.
+## 4.ls和cd
 
 ![image-20260720155312463](/images/image-20260720155312463.png)
 
@@ -90,7 +90,7 @@ cd ~ 或 cd — 回到家目录
 
 
 
-## 5.
+## 5.mkdir和touch
 
 ![image-20260720162138998](/images/image-20260720162138998.png)
 
@@ -113,7 +113,7 @@ touch file.txt — 创建空文件
 
 
 
-## 6.
+## 6.cp和mv
 
 ![image-20260720163149213](/images/image-20260720163149213.png)
 
@@ -149,7 +149,7 @@ mv file dir/ — 移动文件到目录
 
 
 
-## 7.
+## 7.rm
 
 ![image-20260720164522549](/images/image-20260720164522549.png)
 
@@ -171,7 +171,7 @@ rmdir dir — 删除空目录
 
 
 
-## 8.
+## 8.cat，less，more
 
 ![image-20260720174600630](/images/image-20260720174600630.png)
 
@@ -188,7 +188,7 @@ more file — 类似 less 的简化版
 
 
 
-## 9.
+## 9.head和tail
 
 ![image-20260720174944735](/images/image-20260720174944735.png)
 
@@ -205,7 +205,7 @@ tail -f file — 实时跟踪文件末尾（日志常用）
 
 
 
-## 9.
+## 9.nano
 
 ![image-20260720175347317](/images/image-20260720175347317.png)
 
@@ -223,7 +223,7 @@ Ctrl+U — 粘贴
 
 
 
-## 10.
+## 10.vim
 
 ![image-20260720175727315](/images/image-20260720175727315.png)
 
@@ -261,7 +261,7 @@ sudo更新一下软件园，然install就行了。
 
 
 
-## 11.
+## 11.grep
 
 ![image-20260721145606928](/images/image-20260721145606928.png)
 
@@ -281,7 +281,7 @@ grep -c — 只显示匹配行数
 
 
 
-## 12.
+## 12.find
 
 ![image-20260721145848444](/images/image-20260721145848444.png)
 
@@ -314,7 +314,7 @@ find /path -mtime -7 — 最近 7 天修改过的文件
 
 
 
-## 13.
+## 13. 管道符|
 
 ![image-20260721151030890](/images/image-20260721151030890.png)
 
@@ -341,7 +341,7 @@ history | tail -20 — 查看最近 20 条历史命令
 
 
 
-## 14.
+## 14.重定向和追加
 
 ![image-20260721152236291](/images/image-20260721152236291.png)
 
@@ -368,7 +368,7 @@ history | tail -20 — 查看最近 20 条历史命令
 
 
 
-## 15.
+## 15.sort和uniq和wc
 
 ![image-20260721162910538](/images/image-20260721162910538.png)
 
@@ -392,7 +392,7 @@ wc -c — 统计字节数
 
 
 
-## 16.
+## 16.chmod
 
 ![image-20260721164549604](/images/image-20260721164549604.png)
 
@@ -414,7 +414,7 @@ chmod 用于修改文件权限。
 
 
 
-## 17.
+## 17.chown
 
 ![image-20260721164851472](/images/image-20260721164851472.png)
 
@@ -437,7 +437,7 @@ sudo useradd -m xxx
 
 
 
-## 18.
+## 18.useradd和groupadd
 
 ![image-20260721165651341](/images/image-20260721165651341.png)
 
@@ -462,7 +462,7 @@ groups user — 查看用户所属组
 
 
 
-## 19.
+## 19.sudo和su
 
 ![image-20260721170350651](/images/image-20260721170350651.png)
 
@@ -488,7 +488,7 @@ su 切换整个用户会话
 
 
 
-## 20.
+## 20.ps和top
 
 ![image-20260721203123499](/images/image-20260721203123499.png)
 
@@ -512,7 +512,7 @@ USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
 
 
 
-## 21.
+## 21.kill
 
 ![image-20260721204417128](/images/image-20260721204417128.png)
 
@@ -531,7 +531,7 @@ killall name — 终止所有同名进程
 
 
 
-## 22.
+## 22.jobs后台任务
 
 ![image-20260721205751672](/images/image-20260721205751672.png)
 
@@ -545,6 +545,220 @@ bg %n — 让暂停的任务在后台继续运行
 
 nohup command & — 退出终端后继续运行
 ```
+
+![image-20260723170025005](/images/image-20260723170025005.png)
+
+好吧，感觉这个任务描述不对，第四点完全没有用，还会误导。
+
+
+
+## 23.systemctl
+
+![image-20260723170125455](/images/image-20260723170125455.png)
+
+```
+systemctl start name — 启动服务
+systemctl stop name — 停止服务
+systemctl restart name — 重启服务
+systemctl status name — 查看状态
+systemctl enable name — 开机自启
+systemctl disable name — 取消自启
+
+查看服务列表
+systemctl list-units --type=service
+service --status-all（兼容旧系统）
+```
+
+![image-20260723170902029](/images/image-20260723170902029.png)
+
+讲一讲问题：
+
+感觉不出这个 `systemctl` 有什么用，没有感觉出这个会在ctf做题中起到的作用，没有什么意思。
+
+然后就是应该就是单纯版本问题ubuntu的版本过新，导致这个项目一直弹一些没有用的信息。
+
+
+
+## 24.cron定时任务
+
+![image-20260723171113434](/images/image-20260723171113434.png)
+
+```
+分 时 日 月 周 命令
+
+*  *  *  *  *  command
+常用操作
+crontab -e — 编辑当前用户的定时任务
+crontab -l — 列出当前定时任务
+crontab -r — 删除所有定时任务
+
+时间示例
+* * * * * — 每分钟
+0 * * * * — 每小时
+0 0 * * * — 每天午夜
+0 0 * * 0 — 每周日午夜
+
+```
+
+![image-20260723172511695](/images/image-20260723172511695.png)
+
+讲一讲问题：
+
+我快被这个linux终端的显示搞死了，长指令无法换行导致我看的巨难受。
+
+然后就是依旧是没有 `cron` 这个定时任务，还得我自己装。
+
+最后就是，我tf的crontab控制，没有全是所有都得sudo然后指定用户。
+
+```
+printf '%s\n' '* * * * * date >> ~/cron_log.txt' | sudo crontab -u student -
+sudo crontab -u student -l > /home/student/my_crontab.txt
+cat /home/student/my_crontab.txt
+```
+
+最后还是小小借助ai整合了一下指令。
+
+
+
+## 25.ip和ifconfig
+
+![image-20260723172835713](/images/image-20260723172835713.png)
+
+```
+- `ip addr` — 查看所有网络接口和 IP 地址
+- `ip link` — 查看网络接口状态
+- `ip route` — 查看路由表
+
+- `ifconfig` — 查看所有网络接口
+- `ifconfig eth0` — 查看指定接口
+
+- `lo` — 本地回环 127.0.0.1
+- `eth0` — 第一个以太网接口
+- `wlan0` — 无线网卡
+```
+
+![image-20260723173046836](/images/image-20260723173046836.png)
+
+
+
+## 26.ping和traceroute追踪
+
+![image-20260723173122459](/images/image-20260723173122459.png)
+
+```
+ping 与 traceroute
+
+ping — 测试连通性
+ping host — 持续 ping（Ctrl+C 停止）
+ping -c 3 host — 只 ping 3 次
+ping -W 2 host — 超时 2 秒
+
+traceroute — 路由追踪
+traceroute host — 显示到目标的路由路径
+tracepath host — 类似 traceroute
+```
+
+![image-20260723173232224](/images/image-20260723173232224.png)
+
+
+
+## 27.curl和wget
+
+![image-20260723173345427](/images/image-20260723173345427.png)
+
+```
+curl — 传输数据
+curl url — 获取页面内容
+curl -O url — 下载文件（保留原名）
+curl -o file url — 下载并指定文件名
+curl -I url — 只获取响应头
+curl -X POST url — 发送 POST 请求
+
+wget — 下载文件
+wget url — 下载文件
+wget -O file url — 指定保存文件名
+```
+
+![image-20260723173554582](/images/image-20260723173554582.png)
+
+
+
+## 28.ss和netstat监听
+
+![image-20260723173650030](/images/image-20260723173650030.png)
+
+```
+ss — Socket Statistics（推荐）
+ss -t — 显示 TCP 连接
+ss -u — 显示 UDP 连接
+ss -l — 只显示监听端口
+ss -n — 显示数字端口号
+ss -p — 显示进程信息
+ss -tlnp — 常用组合：TCP 监听端口+进程
+
+netstat（旧版）
+netstat -tlnp — 类似 ss -tlnp
+```
+
+![image-20260723174327669](/images/image-20260723174327669.png)
+
+讲一讲问题：
+监听还蛮有用的，一般是需要用临时服务来接收对方信息，或者来构造一个服务向对方发送信息的。我还没有搞一台服务器，之后得搞一下了，日本的vps存在断连，顶多拿来当梯子勉强用了。
+
+
+
+## 29.
+
+![image-20260723174530242](/images/image-20260723174530242.png)
+
+```
+DNS 配置文件
+/etc/resolv.conf — DNS 服务器配置
+/etc/hosts — 本地主机名映射
+
+查询工具
+dig domain — 详细 DNS 查询
+nslookup domain — 简单 DNS 查询
+host domain — 最简洁的查询
+
+/etc/hosts 格式
+127.0.0.1  localhost
+::1        localhost
+```
+
+![image-20260723175725398](/images/image-20260723175725398.png)
+
+讲一讲问题：
+
+这关没做好啊，感觉 ，应该更有教学感一点，比如dns是什么有什么意思，这个配置文件是什么？
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
